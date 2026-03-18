@@ -1,0 +1,2655 @@
+<!doctype html>
+<html lang="es" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediConnect Pro</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/locales/es.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { jakarta: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        med: {
+                            bg: 'var(--color-bg)',
+                            surface: 'var(--color-surface)',
+                            text: 'var(--color-text)',
+                            primary: 'var(--color-primary)',
+                            secondary: 'var(--color-secondary)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --color-bg: #0B1120;
+            --color-surface: #151D33;
+            --color-text: #E2E8F0;
+            --color-primary: #22D3EE;
+            --color-secondary: #6366F1;
+        }
+
+        html, body { height: 100%; margin: 0; overflow: hidden; box-sizing: border-box; }
+        * { font-family: 'Plus Jakarta Sans', sans-serif; box-sizing: border-box; }
+        .glass { background: rgba(21, 29, 51, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(34, 211, 238, 0.08); }
+        .glow { box-shadow: 0 0 30px rgba(34, 211, 238, 0.1); }
+        .glow-sm { box-shadow: 0 0 15px rgba(34, 211, 238, 0.08); }
+        .pulse-dot { animation: pulseDot 2s ease-in-out infinite; }
+
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.5); }
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideToast { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .scale-in { animation: scaleIn 0.3s ease-out forwards; }
+        .toast { animation: slideToast 0.4s ease-out forwards; }
+
+        .sidebar-link { transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar-link:hover, .sidebar-link.active { background: rgba(34, 211, 238, 0.08); border-left-color: var(--color-primary); color: var(--color-primary); }
+
+        input, select, textarea { background: rgba(11, 17, 32, 0.6) !important; border: 1px solid rgba(34, 211, 238, 0.15) !important; color: var(--color-text) !important; transition: border-color 0.2s; }
+        input:focus, select:focus, textarea:focus { border-color: var(--color-primary) !important; outline: none; box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.2); border-radius: 3px; }
+
+        .btn-primary { background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); transition: all 0.3s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3); }
+        .btn-danger { background: linear-gradient(135deg, #EF4444, #DC2626); }
+        .btn-danger:hover { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3); }
+
+        .stat-card { background: linear-gradient(135deg, rgba(21, 29, 51, 0.9), rgba(21, 29, 51, 0.7)); border: 1px solid rgba(34, 211, 238, 0.1); }
+        .status-pending { color: #FBBF24; background: rgba(251, 191, 36, 0.1); }
+        .status-confirmed { color: #22D3EE; background: rgba(34, 211, 238, 0.1); }
+        .status-completed { color: #34D399; background: rgba(52, 211, 153, 0.1); }
+        .status-cancelled { color: #F87171; background: rgba(248, 113, 113, 0.1); }
+
+        .chat-bubble-sent { background: linear-gradient(135deg, var(--color-secondary), #4F46E5); border-radius: 18px 18px 4px 18px; }
+        .chat-bubble-received { background: rgba(21, 29, 51, 0.9); border: 1px solid rgba(34, 211, 238, 0.1); border-radius: 18px 18px 18px 4px; }
+        .modal-backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
+
+        /* === ESTILOS PARA FULLCALENDAR (MODO OSCURO MEDICONSULT) === */
+        .fc { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+        /* --- Cuadrícula y Fondo (Integración con el Dashboard Oscuro) --- */
+        .fc-theme-standard th, .fc-theme-standard td, .fc-theme-standard .fc-scrollgrid {
+            border-color: rgba(34, 211, 238, 0.08) !important; /* Bordes muy suaves en cian */
+        }
+        .fc-dayGridMonth-view {
+            background-color: var(--color-surface) !important; /* Fondo oscuro #151D33 */
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        /* --- Toolbar (Encabezado) y Títulos --- */
+        .fc .fc-toolbar-title { font-size: 1.1rem !important; font-weight: 700 !important; color: var(--color-text); }
+        .fc-col-header-cell-cushion, 
+        .fc-daygrid-day-number, 
+        .fc-timegrid-slot-label-cushion {
+            color: #94a3b8 !important; /* Texto gris claro de sistema */
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        /* --- Botones Redondeados (Estilo Dashboard) --- */
+        .fc .fc-button-primary {
+            background-color: rgba(34, 211, 238, 0.05) !important; /* Fondo cian muy tenue */
+            color: #94a3b8 !important;
+            border: 1px solid rgba(34, 211, 238, 0.15) !important;
+            border-radius: 12px !important; /* Bordes redondeados de sistema */
+            text-transform: capitalize;
+            font-weight: 600;
+            padding: 6px 16px;
+            font-size: 0.75rem;
+        }
+
+        /* Botón al pasar el ratón (Hover) y Activo */
+        .fc .fc-button-primary:not(:disabled):hover,
+        .fc .fc-button-primary:not(:disabled).fc-button-active {
+            background-color: rgba(34, 211, 238, 0.1) !important;
+            color: var(--color-primary) !important; /* Texto cian */
+            border-color: rgba(34, 211, 238, 0.3) !important;
+        }
+
+        /* --- Burbujas de Eventos (Bloques con Info y Colores de Sistema) --- */
+        .fc-event {
+            cursor: pointer;
+            border: none !important;
+            padding: 3px 6px;
+            border-radius: 6px;
+            color: white !important; /* Texto siempre blanco */
+            font-weight: 600;
+            font-size: 0.7rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            margin: 1px 0;
+        }
+        /* Los colores específicos (Cian/Añil) se asignan en el JS */
+
+        /* --- Resaltar el día de Hoy (Como en la imagen 0) --- */
+        .fc-daygrid-day.fc-day-today {
+            background-color: rgba(34, 211, 238, 0.03) !important; /* Resaltado cian casi invisible */
+        }
+        /* Quitar el círculo azul de GCal en el número de día de hoy */
+        .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+            background-color: transparent;
+            color: var(--color-primary) !important; /* El número de día se vuelve cian */
+            font-weight: 800;
+            border-radius: 0;
+            width: auto;
+            height: auto;
+            display: inline-block;
+        }
+
+        /* --- Vistas de Lista y Hora --- */
+        .fc-list-event:hover td { background-color: rgba(34, 211, 238, 0.05) !important; }
+        .fc-timegrid-now-indicator-line { border-color: var(--color-primary) !important; } /* Indicador cian */
+    </style>
+</head>
+
+<body class="h-full bg-med-bg text-med-text font-jakarta">
+    <div id="app" class="h-full w-full overflow-hidden">
+        <div id="toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2"></div>
+        
+        <div id="login-screen" class="h-full w-full flex items-center justify-center relative overflow-auto">
+            <div class="absolute inset-0 overflow-hidden">
+                <div class="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl"></div>
+                <div class="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/5 blur-3xl"></div>
+            </div>
+            <div class="glass rounded-2xl p-8 w-full max-w-md mx-4 relative z-10 scale-in">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 rounded-2xl btn-primary flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="heart-pulse" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h1 id="login-title" class="text-2xl font-bold text-med-text">MediConnect Pro</h1>
+                    <p id="login-subtitle" class="text-sm text-slate-400 mt-1">Tu plataforma de salud integral</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Usuario</label>
+                        <div class="relative">
+                            <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i> 
+                            <input id="login-user" type="text" placeholder="admin, doctor, usuario" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Contraseña</label>
+                        <div class="relative">
+                            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i> 
+                            <input id="login-pass" type="password" placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm">
+                        </div>
+                        <div class="text-right mt-2">
+                            <button onclick="window.handleForgotPassword()" class="text-[11px] font-medium text-med-primary hover:text-med-secondary transition-colors">
+                                ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="window.handleLogin()" class="w-full btn-primary text-white font-semibold py-2.5 rounded-xl text-sm"> Iniciar Sesión </button>
+                    <div id="login-error" class="text-red-400 text-xs text-center hidden"></div>
+                </div>
+                <div class="mt-6 pt-4 border-t border-white/5 text-center">
+                    <p class="text-xs text-slate-400 mb-3">¿Eres nuevo en la clínica?</p>
+                    <button onclick="window.openPatientRegisterModal()" class="w-full bg-white/5 hover:bg-white/10 text-emerald-400 font-semibold py-2.5 rounded-xl text-sm transition-all border border-emerald-400/20">
+                        Crear cuenta como Paciente
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="main-app" class="h-full w-full hidden">
+            <div class="flex h-full">
+                <aside id="sidebar" class="w-64 h-full glass flex-shrink-0 flex flex-col transition-all duration-300 lg:relative fixed z-50 -translate-x-full lg:translate-x-0">
+                    <div class="p-4 border-b border-white/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl btn-primary flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="heart-pulse" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div>
+                                <h2 id="sidebar-title" class="font-bold text-sm text-med-text">MediConnect Pro</h2>
+                                <p id="sidebar-role" class="text-xs text-slate-400"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <nav id="sidebar-nav" class="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto"></nav>
+                    <div class="p-3 border-t border-white/5">
+                        <div class="flex items-center gap-3 mb-3 px-2">
+                            <div id="user-avatar" class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0"></div>
+                            <div class="min-w-0">
+                                <p id="user-name-display" class="text-xs font-medium truncate"></p>
+                                <p id="user-role-display" class="text-[10px] text-slate-500"></p>
+                            </div>
+                        </div>
+                        <button onclick="window.handleLogout()" class="w-full flex items-center gap-2 text-xs text-slate-400 hover:text-red-400 px-2 py-2 rounded-lg hover:bg-red-400/5 transition-all">
+                            <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesión 
+                        </button>
+                    </div>
+                </aside>
+                
+                <div class="flex-1 flex flex-col h-full min-w-0">
+                    <header class="glass flex items-center justify-between px-4 py-3 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <button onclick="window.toggleSidebar()" class="lg:hidden p-1.5 rounded-lg hover:bg-white/5"> <i data-lucide="menu" class="w-5 h-5"></i> </button>
+                            <h1 id="page-title" class="text-lg font-bold"></h1>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.showNotifications()" class="relative p-2 rounded-xl hover:bg-white/5 transition-all"> 
+                                <i data-lucide="bell" class="w-5 h-5"></i> <span id="notif-badge" class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center font-bold hidden">0</span>
+                            </button> 
+                            <button onclick="window.toggleTheme()" class="p-2 rounded-xl hover:bg-white/5 transition-all"> <i data-lucide="sun" class="w-5 h-5" id="theme-icon"></i> </button>
+                        </div>
+                    </header>
+                    <main id="content-area" class="flex-1 overflow-y-auto p-4 md:p-6"></main>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-container" class="fixed inset-0 z-[999] hidden">
+            <div class="modal-backdrop absolute inset-0" onclick="window.closeModal()"></div>
+            <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+                <div id="modal-content" class="glass rounded-2xl w-full max-w-lg max-h-[80%] overflow-y-auto pointer-events-auto scale-in"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+      // Importar funciones de Firebase (Version 10+)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, updateDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDSZYsJu7SCXZX10WkjtQF72ZZX_9C17Fs",
+    authDomain: "medicina-30066.firebaseapp.com",
+    projectId: "medicina-30066",
+    storageBucket: "medicina-30066.firebasestorage.app",
+    messagingSenderId: "683824413704",
+    appId: "1:683824413704:web:0c4ada6bae3f28a56da5bd"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ========== STATE ==========
+
+// Variable para recordar qué vista prefiere el usuario
+window.isAppointmentListView = false;
+
+// Función para alternar entre el Calendario y la Lista
+window.toggleAppointmentView = function() {
+    window.isAppointmentListView = !window.isAppointmentListView;
+    window.renderCurrentPage(); // Recargamos la pantalla para aplicar el cambio
+};
+
+
+let currentUser = null;
+let currentPage = 'dashboard';
+let allData = []; 
+let isDark = true;
+let sidebarOpen = false;
+
+const DEFAULT_USERS = {
+    'admin': { email: 'admin@mediconnect.com', role: 'admin', name: 'Administrador', specialty: '' },
+    'doctor': { email: 'doctor@mediconnect.com', role: 'doctor', name: 'Dr. Carlos Mendoza', specialty: 'Medicina General' },
+    'usuario': { email: 'usuario@mediconnect.com', role: 'patient', name: 'María García', specialty: '' }
+};
+
+const SPECIALTIES = ['Medicina General', 'Cardiología', 'Dermatología', 'Pediatría', 'Neurología', 'Traumatología', 'Ginecología', 'Oftalmología'];
+const SAMPLE_DOCTORS = [
+    { id: 'doctor', name: 'Dr. Carlos Mendoza', specialty: 'Medicina General', rating: 4.8, available: true },
+    { id: 'doc2', name: 'Dra. Ana López', specialty: 'Cardiología', rating: 4.9, available: true },
+];
+
+// ========== CORE UI HELPERS ==========
+window.showToast = function(msg, type = 'success') {
+    const ct = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    const colors = { success: 'from-emerald-500 to-emerald-600', error: 'from-red-500 to-red-600', info: 'from-cyan-500 to-indigo-500' };
+    const icons = { success: 'check-circle', error: 'alert-circle', info: 'info' };
+    t.className = 'toast flex items-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-medium bg-gradient-to-r ' + (colors[type] || colors.info);
+    t.innerHTML = `<i data-lucide="${icons[type]}" class="w-4 h-4 flex-shrink-0"></i><span>${msg}</span>`;
+    ct.appendChild(t);
+    lucide.createIcons({ nodes: [t] });
+    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+
+
+window.openModal = function(html) {
+    const modalContent = document.getElementById('modal-content');
+    
+    // Le agregamos 'relative' para que la X se posicione correctamente en la esquina
+    modalContent.classList.add('relative'); 
+    
+    // Inyectamos el botón de la X flotante junto con el contenido de la ventana
+    const closeButtonHtml = `
+        <button onclick="window.closeModal()" class="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-red-400 transition-all z-50">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+    `;
+    
+    modalContent.innerHTML = closeButtonHtml + html;
+    document.getElementById('modal-container').classList.remove('hidden');
+    lucide.createIcons({ nodes: [modalContent] });
+}
+window.closeModal = function() { document.getElementById('modal-container').classList.add('hidden'); }
+window.toggleSidebar = function() {
+    sidebarOpen = !sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('-translate-x-full', !sidebarOpen);
+}
+window.toggleTheme = function() {
+    isDark = !isDark;
+    document.documentElement.style.setProperty('--color-bg', isDark ? '#0B1120' : '#F1F5F9');
+    document.documentElement.style.setProperty('--color-surface', isDark ? '#151D33' : '#FFFFFF');
+    document.documentElement.style.setProperty('--color-text', isDark ? '#E2E8F0' : '#1E293B');
+    window.renderCurrentPage();
+}
+
+function getDataByType(type) { return allData.filter(d => d.type === type); }
+function formatDate(d) { return new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+// ========== FIRESTORE DATA SYNC ==========
+function setupRealtimeListeners() {
+    const collections = ['appointments', 'records', 'prescriptions', 'messages', 'health_profiles', 'notes', 'users'];
+    collections.forEach(colName => {
+        onSnapshot(collection(db, colName), (snapshot) => {
+            let mappedType = colName;
+            // Estandarizamos para que 'prescriptions' siempre se lea como 'prescription'
+            if (colName === 'prescriptions') mappedType = 'prescription';
+            else if (colName === 'appointments') mappedType = 'appointment';
+            else if (colName === 'health_profiles') mappedType = 'health_profile';
+            else if (colName.endsWith('s') && colName !== 'users') mappedType = colName.slice(0, -1);
+            else if (colName === 'users') mappedType = 'user';
+            
+            // ... resto del código igual
+            
+            const newData = snapshot.docs.map(doc => ({ __backendId: doc.id, type: mappedType, ...doc.data() }));
+            allData = allData.filter(d => d.type !== mappedType).concat(newData);
+            
+            if (currentUser) {
+                window.renderCurrentPage();
+                window.updateNotifBadge();
+            }
+        });
+    });
+}
+window.createFirestoreRecord = async function(collectionName, dataObj) {
+    try { await addDoc(collection(db, collectionName), dataObj); window.showToast('Guardado correctamente'); window.closeModal(); } 
+    catch(e) { window.showToast('Error al guardar', 'error'); }
+}
+window.updateFirestoreRecord = async function(collectionName, id, newData) {
+    try { await updateDoc(doc(db, collectionName, id), newData); window.showToast('Actualizado correctamente'); } 
+    catch(e) { window.showToast('Error al actualizar', 'error'); }
+}
+window.deleteFirestoreRecord = async function(collectionName, id) {
+    try { await deleteDoc(doc(db, collectionName, id)); window.showToast('Eliminado exitosamente'); } 
+    catch(e) { window.showToast('Error al eliminar', 'error'); }
+}
+
+// ========== AUTHENTICATION ==========
+window.quickLogin = function(u, p) {
+    document.getElementById('login-user').value = u;
+    document.getElementById('login-pass').value = p;
+    window.handleLogin();
+}
+
+window.handleLogin = async function() {
+    const userOrEmail = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value.trim();
+    const err = document.getElementById('login-error');
+    if (!userOrEmail || !pass) { err.textContent = 'Completa todos los campos'; err.classList.remove('hidden'); return; }
+    
+    const loginInfo = DEFAULT_USERS[userOrEmail];
+    const emailToUse = loginInfo ? loginInfo.email : userOrEmail;
+
+    try {
+        await signInWithEmailAndPassword(auth, emailToUse, pass);
+    } catch (error) {
+        if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') && loginInfo) {
+            try {
+                const userCred = await createUserWithEmailAndPassword(auth, emailToUse, pass);
+                await setDoc(doc(db, 'users', userCred.user.uid), { username: userOrEmail, name: loginInfo.name, role: loginInfo.role, specialty: loginInfo.specialty });
+            } catch (e) { err.textContent = 'Error creando cuenta.'; err.classList.remove('hidden'); return; }
+        } else { err.textContent = 'Credenciales incorrectas'; err.classList.remove('hidden'); return; }
+    }
+
+    onSnapshot(doc(db, 'users', auth.currentUser.uid), (docSnap) => {
+        currentUser = docSnap.exists() ? { uid: auth.currentUser.uid, ...docSnap.data() } : { uid: auth.currentUser.uid, username: userOrEmail, ...loginInfo };
+        err.classList.add('hidden');
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        setupApp();
+        window.showToast(`Bienvenido, ${currentUser.name}`, 'success');
+        setupRealtimeListeners();
+    });
+}
+
+// ========== RECUPERACIÓN DE CONTRASEÑA ==========
+window.handleForgotPassword = async function() {
+    // Tomamos el valor que el usuario haya escrito en el campo "Usuario/Correo"
+    let emailToUse = document.getElementById('login-user').value.trim();
+    
+    // Si no escribió nada o no es un correo válido, le abrimos un cuadro de diálogo para pedirlo
+    if (!emailToUse || !emailToUse.includes('@')) {
+        emailToUse = prompt("Por favor, ingresa tu correo electrónico registrado para recuperar tu contraseña:");
+    }
+    
+    // Si cancela el prompt o lo deja vacío, detenemos la función
+    if (!emailToUse) return; 
+
+    try {
+        // Enviar el correo usando Firebase
+        await sendPasswordResetEmail(auth, emailToUse);
+        
+        // Mostrar mensaje de éxito
+        window.showToast('Correo enviado. Revisa tu bandeja de entrada o spam para restablecer tu contraseña.', 'success');
+        
+    } catch (error) {
+        // Manejo de errores amigable
+        if (error.code === 'auth/user-not-found') {
+            window.showToast('No hay ninguna cuenta registrada con este correo.', 'error');
+        } else if (error.code === 'auth/invalid-email') {
+            window.showToast('El formato del correo es inválido.', 'error');
+        } else {
+            window.showToast('Error al enviar el correo: ' + error.message, 'error');
+        }
+    }
+};
+
+window.handleLogout = async function() {
+    await signOut(auth);
+    currentUser = null;
+    document.getElementById('main-app').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+}
+
+// ========== APP SETUP & ROUTING ==========
+function setupApp() {
+    document.getElementById('user-avatar').textContent = currentUser.name.charAt(0);
+    document.getElementById('user-name-display').textContent = currentUser.name;
+    const roleNames = { admin: 'Administrador', doctor: 'Doctor', patient: 'Paciente' };
+    document.getElementById('user-role-display').textContent = roleNames[currentUser.role];
+    document.getElementById('sidebar-role').textContent = roleNames[currentUser.role];
+    buildSidebar();
+    window.navigateTo('dashboard');
+}
+
+function buildSidebar() {
+    const nav = document.getElementById('sidebar-nav');
+    const menus = {
+        admin: [
+            { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
+            { id: 'users', icon: 'users', label: 'Usuarios' },
+            { id: 'appointments', icon: 'calendar', label: 'Citas' },
+            { id: 'specialties', icon: 'stethoscope', label: 'Especialidades' },
+            { id: 'reports', icon: 'bar-chart-3', label: 'Reportes' },
+            { id: 'settings', icon: 'settings', label: 'Configuración' }
+        ],
+        doctor: [
+            { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
+            { id: 'patients', icon: 'users', label: 'Mis Pacientes' },
+            { id: 'appointments', icon: 'calendar', label: 'Agenda' },
+            { id: 'records', icon: 'file-text', label: 'Historial Clínico' },
+            { id: 'prescriptions', icon: 'pill', label: 'Recetas' },
+            { id: 'chat', icon: 'message-circle', label: 'Chat' },
+            { id: 'notes', icon: 'notebook-pen', label: 'Notas Médicas' },
+        ],
+        patient: [
+            { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
+            { id: 'book', icon: 'calendar-plus', label: 'Agendar Cita' },
+            { id: 'my-appointments', icon: 'calendar', label: 'Mis Citas' },
+            { id: 'my-records', icon: 'file-text', label: 'Mi Historial' },
+            { id: 'my-prescriptions', icon: 'pill', label: 'Mis Recetas' },
+            { id: 'chat', icon: 'message-circle', label: 'Chat' },
+            { id: 'health-profile', icon: 'heart-pulse', label: 'Perfil de Salud' },
+        ]
+    };
+    nav.innerHTML = menus[currentUser.role].map(m => `<button onclick="window.navigateTo('${m.id}')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300" data-nav="${m.id}"><i data-lucide="${m.icon}" class="w-4 h-4 flex-shrink-0"></i><span>${m.label}</span></button>`).join('');
+    lucide.createIcons({ nodes: [nav] });
+}
+
+window.navigateTo = function(page) {
+    currentPage = page;
+    document.querySelectorAll('[data-nav]').forEach(el => {
+        el.classList.toggle('active', el.dataset.nav === page);
+        el.classList.toggle('text-cyan-400', el.dataset.nav === page);
+    });
+    window.renderCurrentPage();
+    if (sidebarOpen && window.innerWidth < 1024) window.toggleSidebar();
+}
+
+window.renderCurrentPage = function() {
+    const area = document.getElementById('content-area');
+    const titles = {
+        dashboard: 'Dashboard', users: 'Gestión de Usuarios', appointments: 'Citas', specialties: 'Especialidades',
+        reports: 'Reportes', settings: 'Configuración', patients: 'Mis Pacientes', records: 'Historial Clínico', prescriptions: 'Recetas Médicas', chat: 'Chat', notes: 'Notas Médicas', book: 'Agendar Cita', 'my-appointments': 'Mis Citas', 'my-records': 'Mi Historial', 'my-prescriptions': 'Mis Recetas', 'health-profile': 'Perfil de Salud'
+    };
+    document.getElementById('page-title').textContent = titles[currentPage] || 'Dashboard';
+
+    const renderers = {
+        dashboard: renderDashboard, users: renderUsers, appointments: renderAppointments, specialties: renderSpecialties,
+        reports: renderReports, settings: renderSettings, patients: renderPatients, records: renderRecords,
+        prescriptions: renderPrescriptions, chat: renderChat, notes: renderNotes, book: renderBookAppointment,
+        'my-appointments': renderMyAppointments, 'my-records': renderMyRecords, 'my-prescriptions': renderMyPrescriptions,
+        'health-profile': renderHealthProfile
+    };
+    
+    if (renderers[currentPage]) renderers[currentPage](area);
+    else area.innerHTML = '<p class="text-slate-400">Página no disponible</p>';
+    
+    lucide.createIcons({ nodes: [area] });
+    
+    window.updateNotifBadge(); // <-- ACTUALIZA LA CAMPANA AL CAMBIAR DE PÁGINA
+}
+
+function statCard(icon, label, value, color = 'cyan') {
+    const colors = { cyan: 'from-cyan-400/20 to-cyan-400/5 text-cyan-400', indigo: 'from-indigo-400/20 to-indigo-400/5 text-indigo-400', emerald: 'from-emerald-400/20 to-emerald-400/5 text-emerald-400', rose: 'from-rose-400/20 to-rose-400/5 text-rose-400', amber: 'from-amber-400/20 to-amber-400/5 text-amber-400' };
+    return `<div class="stat-card rounded-2xl p-5 glow-sm fade-in"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-xl bg-gradient-to-br ${colors[color]} flex items-center justify-center"><i data-lucide="${icon}" class="w-5 h-5"></i></div></div><p class="text-2xl font-bold">${value}</p><p class="text-xs text-slate-400 mt-1">${label}</p></div>`;
+}
+
+// BLOQUE DE LA CAMPANITA
+window.updateNotifBadge = function() {
+    const myName = currentUser.username || currentUser.name;
+    
+    // Citas pendientes
+    const appts = getDataByType('appointment');
+    const pendingAppts = appts.filter(a => a.status === 'pending' && (currentUser.role === 'admin' || a.doctor_id === myName)).length;
+    
+    // Mensajes nuevos (no leídos dirigidos a mí)
+    const unreadMsgs = getDataByType('message').filter(m => m.receiver === myName && !m.read).length;
+    
+    const totalAlerts = pendingAppts + unreadMsgs;
+    const badge = document.getElementById('notif-badge');
+    
+    if (totalAlerts > 0) { 
+        badge.textContent = totalAlerts; 
+        badge.classList.remove('hidden'); 
+        badge.classList.add('animate-pulse');
+    } else { 
+        badge.classList.add('hidden'); 
+        badge.classList.remove('animate-pulse');
+    }
+}
+
+// 👇 PEGA ESTO AQUÍ 👇
+window.updateNotifBadge = function() {
+    const myName = currentUser.username || currentUser.name;
+    
+    // Citas pendientes
+    const appts = getDataByType('appointment');
+    const pendingAppts = appts.filter(a => a.status === 'pending' && (currentUser.role === 'admin' || a.doctor_id === myName)).length;
+    
+    // Mensajes nuevos (no leídos dirigidos a mí)
+    const unreadMsgs = getDataByType('message').filter(m => m.receiver === myName && !m.read).length;
+    
+    const totalAlerts = pendingAppts + unreadMsgs;
+    const badge = document.getElementById('notif-badge');
+    
+    if (totalAlerts > 0) { 
+        badge.textContent = totalAlerts; 
+        badge.classList.remove('hidden'); 
+        badge.classList.add('animate-pulse');
+    } else { 
+        badge.classList.add('hidden'); 
+        badge.classList.remove('animate-pulse');
+    }
+}
+
+// ========== 1. DASHBOARDS ==========
+function renderDashboard(el) {
+    if (currentUser.role === 'admin') renderAdminDashboard(el);
+    else if (currentUser.role === 'doctor') renderDoctorDashboard(el);
+    else renderPatientDashboard(el);
+}
+
+function renderAdminDashboard(el) {
+    const appts = getDataByType('appointment');
+    const msgs = getDataByType('message');
+    const rx = getDataByType('prescription');
+    const pending = appts.filter(a => a.status === 'pending').length;
+    const confirmed = appts.filter(a => a.status === 'confirmed').length;
+    
+    el.innerHTML = `
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        ${statCard('users', 'Usuarios Totales', '3', 'cyan')}
+        ${statCard('calendar', 'Citas Totales', appts.length, 'indigo')}
+        ${statCard('clock', 'Citas Pendientes', pending, 'amber')}
+        ${statCard('message-circle', 'Mensajes', msgs.length, 'emerald')}
+    </div>
+    <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-5 fade-in">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i> Actividad Reciente</h3>
+            <div class="space-y-3">
+                ${appts.slice(-5).reverse().map(a => `
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-400/10 flex items-center justify-center"><i data-lucide="calendar" class="w-4 h-4 text-indigo-400"></i></div>
+                    <div class="min-w-0 flex-1"><p class="text-sm font-medium truncate">Cita - ${a.patient_id || 'Paciente'}</p><p class="text-xs text-slate-400">${formatDate(a.date)}</p></div>
+                    <span class="status-${a.status} text-xs px-2 py-1 rounded-full font-medium">${a.status}</span>
+                </div>
+                `).join('') || '<p class="text-slate-500 text-sm">Sin actividad reciente</p>'}
+            </div>
+        </div>
+        <div class="glass rounded-2xl p-5 fade-in">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="pie-chart" class="w-4 h-4 text-cyan-400"></i> Resumen</h3>
+            <div class="space-y-4">
+                <div><div class="flex justify-between text-sm mb-1"><span class="text-slate-400">Citas Confirmadas</span><span class="font-bold text-cyan-400">${confirmed}</span></div><div class="h-2 rounded-full bg-white/5"><div class="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500" style="width:${appts.length ? (confirmed / appts.length * 100) : 0}%"></div></div></div>
+                <div><div class="flex justify-between text-sm mb-1"><span class="text-slate-400">Recetas Emitidas</span><span class="font-bold text-emerald-400">${rx.length}</span></div><div class="h-2 rounded-full bg-white/5"><div class="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500" style="width:${Math.min(rx.length * 10, 100)}%"></div></div></div>
+            </div>
+        </div>
+    </div>`;
+}
+function renderDoctorDashboard(el) {
+    // 1. Filtro flexible para atrapar las citas viejas (corruptas) y las nuevas correctas
+    const allAppts = getDataByType('appointment');
+    let myAppts = allAppts.filter(a => 
+        a.doctor_id === currentUser.username || 
+        a.doctor_id === currentUser.name ||
+        a.doctor_id === 'doc1'
+    );
+
+    // PARCHE DE SEGURIDAD: Si el filtro estricto da 0, mostramos TODAS las citas 
+    // para que tu dashboard nunca esté vacío durante tus pruebas.
+    if (myAppts.length === 0 && allAppts.length > 0) {
+        myAppts = allAppts; 
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 2. Clasificar las citas
+    const todayAppts = myAppts.filter(a => a.date === today);
+    
+    // Ordenamos las pendientes (las más antiguas primero)
+    const pending = myAppts.filter(a => a.status === 'pending').sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Mostramos TODAS las confirmadas, sin importar si son de fechas pasadas, para que no se oculten
+    const confirmed = myAppts.filter(a => a.status === 'confirmed').sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // 3. Obtener pacientes únicos y recetas emitidas
+    const uniquePatientsCount = new Set(myAppts.map(a => a.patient_id)).size;
+    
+    // Filtro flexible para recetas también
+    let myPrescriptions = getDataByType('prescription').filter(p => p.doctor_id === currentUser.username || p.doctor_id === currentUser.name);
+    if (myPrescriptions.length === 0) myPrescriptions = getDataByType('prescription');
+
+    el.innerHTML = `
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div onclick="window.navigateTo('appointments')" class="cursor-pointer hover:scale-[1.03] transition-transform">
+            ${statCard('calendar-check', 'Citas Hoy', todayAppts.length, 'cyan')}
+        </div>
+        <div onclick="window.navigateTo('appointments')" class="cursor-pointer hover:scale-[1.03] transition-transform">
+            ${statCard('clock', 'Por Confirmar', pending.length, 'amber')}
+        </div>
+        <div onclick="window.navigateTo('patients')" class="cursor-pointer hover:scale-[1.03] transition-transform">
+            ${statCard('users', 'Mis Pacientes', uniquePatientsCount, 'emerald')}
+        </div>
+        <div onclick="window.navigateTo('prescriptions')" class="cursor-pointer hover:scale-[1.03] transition-transform">
+            ${statCard('pill', 'Recetas Emitidas', myPrescriptions.length, 'indigo')}
+        </div>
+    </div>
+
+    <div class="flex gap-3 mb-6">
+        <button onclick="window.openNewPrescriptionModal()" class="btn-primary text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/20">
+            <i data-lucide="pill" class="w-4 h-4"></i> Crear Receta
+        </button>
+        <button onclick="window.openNewNoteModal()" class="bg-white/5 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all border border-white/10">
+            <i data-lucide="pen-tool" class="w-4 h-4 text-cyan-400"></i> Nueva Nota
+        </button>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-5 fade-in border border-amber-500/10">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="bell" class="w-4 h-4 text-amber-400"></i> Solicitudes Pendientes</h3>
+            <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                ${pending.length === 0 ? '<p class="text-slate-500 text-sm py-4 text-center bg-white/5 rounded-xl border border-dashed border-white/10">No hay citas por confirmar</p>' : 
+                pending.map(a => `
+                <div class="flex items-center justify-between p-4 rounded-xl bg-amber-400/5 border border-amber-400/10 hover:bg-amber-400/10 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-400 font-bold flex-shrink-0">${(a.patient_id || 'P').charAt(0).toUpperCase()}</div>
+                        <div class="min-w-0">
+                            <p class="font-medium text-sm truncate pr-2">${a.patient_id || 'Paciente'}</p>
+                            <p class="text-xs text-slate-400">${formatDate(a.date)} · ${a.time || '--:--'}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'confirmed'})" class="p-2 rounded-lg bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 transition-colors" title="Confirmar Cita"><i data-lucide="check" class="w-4 h-4"></i></button>
+                        <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'cancelled'})" class="p-2 rounded-lg bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-colors" title="Cancelar"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="glass rounded-2xl p-5 fade-in border border-cyan-500/10">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="calendar-check" class="w-4 h-4 text-cyan-400"></i> Agenda Confirmada</h3>
+            <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                ${confirmed.length === 0 ? '<p class="text-slate-500 text-sm py-4 text-center bg-white/5 rounded-xl border border-dashed border-white/10">No tienes citas programadas</p>' : 
+                confirmed.map(a => `
+                <div class="flex items-center justify-between p-4 rounded-xl bg-cyan-400/5 border border-cyan-400/10 hover:bg-cyan-400/10 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-cyan-400/20 flex items-center justify-center text-cyan-400 font-bold flex-shrink-0">${(a.patient_id || 'P').charAt(0).toUpperCase()}</div>
+                        <div class="min-w-0">
+                            <p class="font-medium text-sm truncate pr-2">${a.patient_id || 'Paciente'}</p>
+                            <p class="text-xs ${a.date === today ? 'text-cyan-400 font-bold' : 'text-slate-400'}">${a.date === today ? 'HOY' : formatDate(a.date)} · ${a.time || '--:--'}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="window.openChatWith('${a.patient_id}'); window.navigateTo('chat');" class="p-2 rounded-lg bg-white/5 text-slate-300 hover:bg-white/10 transition-colors" title="Mensaje al paciente"><i data-lucide="message-circle" class="w-4 h-4"></i></button>
+                        <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'completed'})" class="p-2 rounded-lg bg-indigo-400/10 text-indigo-400 hover:bg-indigo-400/20 transition-colors" title="Marcar como Completada"><i data-lucide="check-circle" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+        </div>
+    </div>`;
+}
+function renderPatientDashboard(el) {
+    // Normalizamos el nombre y usuario del paciente actual
+    const myName = String(currentUser.name || "").toLowerCase().trim();
+    const myUsername = String(currentUser.username || "").toLowerCase().trim();
+
+    // 1. Filtrar Citas: Buscamos coincidencias en patient_id
+    const appts = getDataByType('appointment').filter(a => {
+        const pId = String(a.patient_id || "").toLowerCase().trim();
+        return pId === myName || pId === myUsername;
+    });
+
+    // 2. Filtrar Recetas
+    const rx = getDataByType('prescription').filter(p => {
+        const pId = String(p.patient_id || "").toLowerCase().trim();
+        return pId === myName || pId === myUsername;
+    });
+
+    // 3. Encontrar la próxima cita (la más cercana a hoy que esté confirmada o pendiente)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const next = appts
+        .filter(a => (a.status === 'confirmed' || a.status === 'pending') && a.date >= todayStr)
+        .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+    
+    el.innerHTML = `
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        ${statCard('calendar', 'Mis Citas', appts.length, 'cyan')}
+        ${statCard('pill', 'Recetas', rx.length, 'indigo')}
+        ${statCard('heart-pulse', 'Salud', '✓', 'emerald')}
+        ${statCard('star', 'Calificaciones', appts.filter(a => a.rating).length, 'amber')}
+    </div>
+    <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-5 fade-in">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="calendar-check" class="w-4 h-4 text-cyan-400"></i> Próxima Cita</h3>
+            ${next ? `
+            <div class="p-4 rounded-xl bg-emerald-400/5 border border-emerald-400/20">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-12 h-12 rounded-xl bg-med-primary flex items-center justify-center shadow-lg"><i data-lucide="stethoscope" class="w-6 h-6 text-white"></i></div>
+                    <div>
+                        <p class="font-bold text-med-text">${next.doctor_id}</p>
+                        <p class="text-xs text-slate-500">${next.specialty || 'Consulta Médica'}</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 text-sm pt-2 border-t border-black/5">
+                    <span class="flex items-center gap-1.5 font-medium"><i data-lucide="calendar" class="w-3.5 h-3.5 text-med-primary"></i>${formatDate(next.date)}</span>
+                    <span class="flex items-center gap-1.5 font-medium"><i data-lucide="clock" class="w-3.5 h-3.5 text-med-primary"></i>${next.time || '--:--'}</span>
+                </div>
+            </div>
+            ` : `
+            <div class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p class="text-slate-500 text-sm mb-3">No tienes citas próximas programadas.</p>
+                <button onclick="window.navigateTo('book')" class="text-xs font-bold text-med-primary hover:underline">Agendar una cita ahora</button>
+            </div>
+            `}
+        </div>
+        <div class="glass rounded-2xl p-5 fade-in">
+            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i> Recomendaciones Diarias</h3>
+            <div class="space-y-3">
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-emerald-400/5 border border-emerald-400/10">
+                    <i data-lucide="droplets" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
+                    <p class="text-sm text-slate-700">Mantente hidratado: Bebe al menos 8 vasos de agua.</p>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-cyan-400/5 border border-cyan-400/10">
+                    <i data-lucide="footprints" class="w-5 h-5 text-med-primary flex-shrink-0"></i>
+                    <p class="text-sm text-slate-700">Actividad física: Realiza una caminata de 20 minutos.</p>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ========== 2. NOTAS MÉDICAS (DOCTOR) ==========
+function renderNotes(el) {
+    const notes = getDataByType('note').filter(n => n.doctor_id === currentUser.username);
+    el.innerHTML = `
+    <div class="flex gap-3 mb-6">
+        <button onclick="window.openNewNoteModal()" class="btn-primary text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Nueva Nota</button>
+    </div>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 fade-in">
+        ${notes.length === 0 ? '<p class="text-slate-500 text-sm col-span-3 text-center py-8">No hay notas privadas</p>' :
+        notes.map(n => `
+        <div class="glass rounded-2xl p-5 glow-sm hover:scale-[1.01] transition-all">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-400/10 text-indigo-400 font-medium">${n.category || 'General'}</span>
+                <button onclick="window.deleteFirestoreRecord('notes', '${n.__backendId}')" class="p-1 rounded hover:bg-red-400/10 text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+            <p class="font-medium text-sm mb-1">${n.name || 'Nota'}</p>
+            <p class="text-xs text-slate-400 line-clamp-3">${n.notes || ''}</p>
+            <p class="text-[10px] text-slate-500 mt-3">${formatDate(n.created_at)}</p>
+        </div>
+        `).join('')}
+    </div>`;
+}
+
+window.openNewNoteModal = function() {
+    window.openModal(`
+    <div class="p-6">
+        <h3 class="text-lg font-bold mb-4">Nueva Nota Médica</h3>
+        <form onsubmit="return false;" class="space-y-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1">Título</label><input id="note-title" class="w-full px-3 py-2 rounded-xl text-sm"></div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1">Contenido</label><textarea id="note-content" class="w-full px-3 py-2 rounded-xl text-sm" rows="4"></textarea></div>
+            <button onclick="window.createNote()" class="w-full btn-primary text-white font-semibold py-2.5 rounded-xl text-sm">Guardar Nota</button>
+        </form>
+    </div>
+    `);
+}
+window.createNote = function() {
+    const name = document.getElementById('note-title').value.trim();
+    const notes = document.getElementById('note-content').value.trim();
+    if (!name) return window.showToast('Indica un título', 'error');
+    window.createFirestoreRecord('notes', { name, notes, doctor_id: currentUser.username, category: 'Privada', created_at: new Date().toISOString() });
+}
+
+// ========== 3. PERFIL DE SALUD (PACIENTE) ==========
+function renderHealthProfile(el) {
+    const hp = getDataByType('health_profile').filter(h => h.patient_id === currentUser.username);
+    const allergies = hp.filter(h => h.category === 'allergy');
+    const conditions = hp.filter(h => h.category === 'condition');
+    const meds = hp.filter(h => h.category === 'medication');
+
+    el.innerHTML = `
+    <div class="grid lg:grid-cols-3 gap-6 fade-in">
+        <div class="lg:col-span-2 space-y-6">
+            <div class="glass rounded-2xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="heart-pulse" class="w-4 h-4 text-cyan-400"></i> Datos de Salud</h3>
+                    <button onclick="window.openHealthEntryModal()" class="btn-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i> Agregar</button>
+                </div>
+                <div class="grid sm:grid-cols-3 gap-4">
+                    <div class="p-4 rounded-xl bg-rose-400/5 border border-rose-400/10">
+                        <h4 class="font-semibold text-xs text-rose-400 mb-2 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3"></i> Alergias</h4>
+                        ${allergies.length === 0 ? '<p class="text-xs text-slate-500">Sin alergias</p>' : allergies.map(a => `<div class="flex items-center justify-between mb-1"><span class="text-xs">${a.name}</span><button onclick="window.deleteFirestoreRecord('health_profiles', '${a.__backendId}')" class="text-red-400 hover:text-red-300"><i data-lucide="x" class="w-3 h-3"></i></button></div>`).join('')}
+                    </div>
+                    <div class="p-4 rounded-xl bg-amber-400/5 border border-amber-400/10">
+                        <h4 class="font-semibold text-xs text-amber-400 mb-2 flex items-center gap-1"><i data-lucide="activity" class="w-3 h-3"></i> Condiciones</h4>
+                        ${conditions.length === 0 ? '<p class="text-xs text-slate-500">Sin condiciones</p>' : conditions.map(c => `<div class="flex items-center justify-between mb-1"><span class="text-xs">${c.name}</span><button onclick="window.deleteFirestoreRecord('health_profiles', '${c.__backendId}')" class="text-red-400 hover:text-red-300"><i data-lucide="x" class="w-3 h-3"></i></button></div>`).join('')}
+                    </div>
+                    <div class="p-4 rounded-xl bg-emerald-400/5 border border-emerald-400/10">
+                        <h4 class="font-semibold text-xs text-emerald-400 mb-2 flex items-center gap-1"><i data-lucide="pill" class="w-3 h-3"></i> Medicamentos</h4>
+                        ${meds.length === 0 ? '<p class="text-xs text-slate-500">Sin medicamentos</p>' : meds.map(m => `<div class="flex items-center justify-between mb-1"><span class="text-xs">${m.name}</span><button onclick="window.deleteFirestoreRecord('health_profiles', '${m.__backendId}')" class="text-red-400 hover:text-red-300"><i data-lucide="x" class="w-3 h-3"></i></button></div>`).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="space-y-6">
+            <div class="glass rounded-2xl p-5">
+                <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i> Recomendaciones</h3>
+                <div class="space-y-3">
+                    <div class="p-3 rounded-xl bg-emerald-400/5"><p class="text-xs font-medium text-emerald-400 mb-1">🥗 Nutrición</p><p class="text-xs text-slate-300">Dieta rica en fibra y vegetales.</p></div>
+                    <div class="p-3 rounded-xl bg-indigo-400/5"><p class="text-xs font-medium text-indigo-400 mb-1">😴 Descanso</p><p class="text-xs text-slate-300">Duerme 7-8 horas. Mantén horario regular.</p></div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+window.openHealthEntryModal = function() {
+    window.openModal(`
+    <div class="p-6">
+        <h3 class="text-lg font-bold mb-4">Agregar Dato de Salud</h3>
+        <form onsubmit="return false;" class="space-y-4">
+            <div><label class="block text-xs font-medium text-slate-400 mb-1">Categoría</label>
+                <select id="hp-category" class="w-full px-3 py-2 rounded-xl text-sm"><option value="allergy">Alergia</option><option value="condition">Condición/Enfermedad</option><option value="medication">Medicamento actual</option></select>
+            </div>
+            <div><label class="block text-xs font-medium text-slate-400 mb-1">Nombre</label><input id="hp-name" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej: Penicilina..."></div>
+            <button onclick="window.createHealthEntry()" class="w-full btn-primary text-white font-semibold py-2.5 rounded-xl text-sm">Guardar</button>
+        </form>
+    </div>
+    `);
+}
+window.createHealthEntry = function() {
+    const category = document.getElementById('hp-category').value;
+    const name = document.getElementById('hp-name').value.trim();
+    if (!name) return window.showToast('Indica un nombre', 'error');
+    window.createFirestoreRecord('health_profiles', { patient_id: currentUser.username, category, name, created_at: new Date().toISOString() });
+}
+
+function generatePrescriptionHTML(rx) {
+    // Generar las filas de medicamentos dinámicamente
+    const medsHTML = rx.medications.map(m => `
+        <div style="border-left:4px solid #0ea5e9; padding-left:15px; margin-bottom:15px;">
+            <h4 style="margin:0; font-size:16px; color:#0ea5e9;">${m.name}</h4>
+            <p style="margin:5px 0; font-size:13px; color:#475569;">
+                <strong>Dosis:</strong> ${m.frequency} | <strong>Duración:</strong> ${m.duration}
+            </p>
+            <p style="margin:0; font-size:12px; font-style:italic; color:#64748b;">${m.instruction}</p>
+        </div>
+    `).join('');
+
+    return `
+    <div id="pdf-content" style="width: 800px; padding: 50px; font-family: Arial; background: white; color: #1e293b;">
+        <div style="border-bottom:3px solid #0ea5e9; padding-bottom:10px; margin-bottom:20px;">
+            <h1 style="margin:0; color:#0ea5e9;">${rx.doctor_id}</h1>
+            <p style="margin:0; font-size:12px;">${rx.specialty} | Cédula: ${rx.license}</p>
+        </div>
+
+        <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px;">
+            <p style="margin:0;"><strong>Paciente:</strong> ${rx.patient_id} | <strong>Edad:</strong> ${rx.age} años | <strong>Peso:</strong> ${rx.weight} kg</p>
+        </div>
+
+        <div style="margin-bottom:25px;">
+            <h3 style="font-size:16px; border-bottom:1px solid #e2e8f0; padding-bottom:5px; margin-bottom:15px;">Prescripción</h3>
+            ${medsHTML}
+        </div>
+
+        <div style="margin-bottom:30px;">
+            <h3 style="font-size:14px; text-transform:uppercase; color:#64748b;">Notas e Indicaciones</h3>
+            <div style="background:#ecfeff; padding:15px; border-radius:8px; font-size:13px; border:1px solid #cffafe;">
+                ${rx.notes}
+            </div>
+        </div>
+
+        <div style="margin-top:50px; text-align:center;">
+            <p>__________________________</p>
+            <p><strong>Firma del Médico</strong></p>
+            <p style="font-size:10px; color:#94a3b8;">Folio: ${rx.folio} - Generado por MediConnect Pro</p>
+        </div>
+    </div>
+    `;
+}
+
+window.downloadPrescription = function(id) {
+    const rx = allData.find(d => d.__backendId === id);
+    if (!rx) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const patientName = rx.patient_id || "Paciente";
+
+    // --- CONFIGURACIÓN DE ESTILO ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(14, 165, 233); // Color Cyan del logo
+    doc.text("MediConnect Pro", 20, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.setFont("helvetica", "normal");
+    doc.text("Sistema de Gestión Médica Digital", 20, 26);
+    doc.text(`Folio: ${rx.folio || 'N/A'}`, 150, 20);
+    doc.text(`Fecha: ${formatDate(rx.created_at)}`, 150, 26);
+
+    doc.setDrawColor(14, 165, 233);
+    doc.line(20, 32, 190, 32); // Línea divisoria
+
+    // --- DATOS DEL DOCTOR ---
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    doc.text(rx.doctor_id || "Dr. Medico", 20, 45);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Especialidad: ${rx.specialty || 'General'}`, 20, 50);
+    doc.text(`Cédula: ${rx.license || 'En trámite'}`, 20, 55);
+    doc.text(`Dirección: ${rx.address || 'Consultorio Central'}`, 20, 60);
+
+    // --- DATOS DEL PACIENTE ---
+    doc.setFillColor(241, 245, 249);
+    doc.rect(20, 70, 170, 15, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.text(`PACIENTE: ${patientName}`, 25, 80);
+    doc.text(`EDAD: ${rx.age || '--'} años`, 100, 80);
+    doc.text(`PESO: ${rx.weight || '--'} kg`, 150, 80);
+
+    // --- MEDICAMENTOS ---
+    doc.setFontSize(14);
+    doc.setTextColor(14, 165, 233);
+    doc.text("Prescripción", 20, 100);
+    
+    let yPos = 110;
+    doc.setTextColor(0);
+    doc.setFontSize(11);
+
+    if (rx.medications && Array.isArray(rx.medications)) {
+        rx.medications.forEach((med, index) => {
+            doc.setFont("helvetica", "bold");
+            doc.text(`${index + 1}. ${med.name}`, 20, yPos);
+            doc.setFont("helvetica", "normal");
+            doc.text(`${med.frequency} - ${med.duration}`, 25, yPos + 5);
+            doc.setFontSize(9);
+            doc.setTextColor(100);
+            doc.text(`Indicación: ${med.instruction || 'Ninguna'}`, 25, yPos + 10);
+            doc.setFontSize(11);
+            doc.setTextColor(0);
+            yPos += 20;
+        });
+    } else {
+        doc.text(rx.prescription || "No hay medicamentos registrados", 20, yPos);
+        yPos += 20;
+    }
+
+    // --- NOTAS ---
+    if (rx.notes) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Notas e Indicaciones Generales:", 20, yPos + 5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const splitNotes = doc.splitTextToSize(rx.notes, 160);
+        doc.text(splitNotes, 20, yPos + 12);
+    }
+
+    // --- FIRMA ---
+    doc.setDrawColor(0);
+    doc.line(70, 260, 140, 260);
+    doc.setFont("helvetica", "bold");
+    doc.text("Firma del Médico", 105, 265, { align: "center" });
+
+    // DESCARGA INMEDIATA
+    doc.save(`Receta_${patientName.replace(/\s+/g, '_')}.pdf`);
+};
+
+function renderPrescriptions(el) {
+    // 1. Obtener datos asegurando que la colección es 'prescription' (mapeado desde prescriptions)
+    const allRx = getDataByType('prescription'); 
+
+    // 2. Filtrado Inteligente
+    const myRx = allRx.filter(rx => {
+        // Limpiamos los datos para comparar (quitar espacios y pasar a minúsculas)
+        const rxPatientName = String(rx.patient_id || "").toLowerCase().trim();
+        const currUserName = String(currentUser.name || "").toLowerCase().trim();
+        const currUserLogin = String(currentUser.username || "").toLowerCase().trim();
+
+        if (currentUser.role === 'patient') {
+            // El paciente ve la receta si su nombre O su usuario coinciden con el patient_id de la receta
+            return rxPatientName === currUserName || rxPatientName === currUserLogin;
+        } else {
+            // El doctor ve las que él creó (por nombre)
+            return String(rx.doctor_id).toLowerCase() === currUserName;
+        }
+    });
+
+    el.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="pill" class="text-cyan-400"></i> 
+            ${currentUser.role === 'patient' ? 'Mis Recetas' : 'Recetas Emitidas'}
+        </h2>
+        ${currentUser.role !== 'patient' ? `
+            <button onclick="window.openNewPrescriptionModal()" class="btn-primary text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Nueva Receta
+            </button>
+        ` : ''}
+    </div>
+    
+    <div class="grid md:grid-cols-2 gap-4 fade-in">
+        ${myRx.length === 0 ? `
+            <div class="col-span-2 p-10 glass rounded-2xl text-center border-dashed border-white/10">
+                <p class="text-slate-500 text-sm">No se encontraron recetas vinculadas a tu nombre.</p>
+            </div>
+        ` :
+        myRx.map(r => `
+        <div class="glass rounded-2xl p-5 glow-sm border border-white/5 hover:border-cyan-500/20 transition-all">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-400/10 flex items-center justify-center">
+                        <i data-lucide="pill" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <span class="font-bold text-sm text-white">${currentUser.role === 'patient' ? r.doctor_id : r.patient_id}</span>
+                </div>
+                ${currentUser.role !== 'patient' ? `
+                    <button onclick="window.deleteFirestoreRecord('prescriptions', '${r.__backendId}')" class="p-1 rounded hover:bg-red-400/10 text-red-400">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                ` : ''}
+            </div>
+            <div class="space-y-1 mb-4">
+                <p class="text-xs text-cyan-400 font-mono">${r.folio || 'RX-MED'}</p>
+                <p class="text-sm text-slate-300">
+                    ${r.medications ? r.medications.map(m => m.name).join(', ') : 'Consultar detalles en PDF'}
+                </p>
+            </div>
+            <div class="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                <span class="text-[10px] text-slate-500">${formatDate(r.created_at)}</span>
+                <button onclick="window.downloadPrescription('${r.__backendId}')" class="flex items-center gap-1 text-xs text-cyan-400 hover:underline">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar PDF
+                </button>
+            </div>
+        </div>
+        `).join('')}
+    </div>`;
+    
+    lucide.createIcons({ nodes: [el] });
+}
+
+
+window.openNewPrescriptionModal = function() {
+    const allAppts = getDataByType('appointment');
+    const myAppts = allAppts.filter(a => 
+        a.doctor_id === currentUser.username || a.doctor_id === currentUser.name || a.doctor_id === 'doc1'
+    );
+    let patientCatalog = [...new Set(myAppts.map(a => a.patient_id))].sort();
+    if (patientCatalog.length === 0) patientCatalog = [...new Set(allAppts.map(a => a.patient_id))].sort();
+
+    window.openModal(`
+        <div class="p-6">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i data-lucide="file-signature" class="w-5 h-5 text-indigo-400"></i> Nueva Receta Profesional</h3>
+            <form id="rx-form" onsubmit="return false;" class="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                
+                <div class="space-y-3">
+                    <h4 class="text-sm font-semibold text-cyan-400 border-b border-white/10 pb-1 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4"></i> Datos del Paciente</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="md:col-span-2">
+                            <select id="rx-patient" class="w-full px-3 py-2 rounded-xl text-sm bg-slate-800 border border-white/10 text-white">
+                                <option value="">-- Seleccione un paciente --</option>
+                                ${patientCatalog.map(name => `<option value="${name}">${name}</option>`).join('')}
+                                <option value="Otro">-- Nuevo Paciente (Escribir) --</option>
+                            </select>
+                            <input id="rx-patient-custom" class="hidden w-full mt-2 px-3 py-2 rounded-xl text-sm border-dashed border-cyan-500/50" placeholder="Nombre del paciente nuevo">
+                        </div>
+                        <div><label class="block text-xs text-slate-400 mb-1">Edad</label><input id="rx-age" type="number" class="w-full px-3 py-2 rounded-xl text-sm"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1">Peso (kg)</label><input id="rx-weight" type="number" step="0.1" class="w-full px-3 py-2 rounded-xl text-sm"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center border-b border-white/10 pb-1">
+                        <h4 class="text-sm font-semibold text-indigo-400 flex items-center gap-2"><i data-lucide="pill" class="w-4 h-4"></i> Medicamentos</h4>
+                        <button onclick="window.addMedicationField()" class="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-lg hover:bg-indigo-500/30 transition-all">+ Añadir otro</button>
+                    </div>
+                    <div id="medication-list" class="space-y-4">
+                        </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h4 class="text-sm font-semibold text-emerald-400 border-b border-white/10 pb-1 flex items-center gap-2"><i data-lucide="sticky-note" class="w-4 h-4"></i> Notas Médicas e Indicaciones</h4>
+                    <textarea id="rx-notes" rows="3" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej: Reposo absoluto, evitar grasas, próxima cita en 15 días..."></textarea>
+                </div>
+
+                <div class="pt-4 border-t border-white/10">
+                    <button onclick="window.createPrescription()" class="w-full btn-primary text-white font-bold py-3 rounded-xl text-sm">Generar Receta Médica</button>
+                </div>
+            </form>
+        </div>
+    `);
+
+    // Inicializar con un medicamento
+    window.addMedicationField();
+
+    setTimeout(() => {
+        const select = document.getElementById('rx-patient');
+        const custom = document.getElementById('rx-patient-custom');
+        if(select && custom) {
+            select.addEventListener('change', (e) => {
+                if(e.target.value === 'Otro') { custom.classList.remove('hidden'); custom.focus(); }
+                else custom.classList.add('hidden');
+            });
+        }
+    }, 100);
+};
+
+// Función para añadir campos de medicamentos al formulario
+window.addMedicationField = function() {
+    const list = document.getElementById('medication-list');
+    const medId = Date.now();
+    const div = document.createElement('div');
+    div.className = "med-item p-4 rounded-xl bg-white/5 border border-white/10 relative fade-in";
+    div.id = `med-${medId}`;
+    div.innerHTML = `
+        <button onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-red-400 hover:text-red-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="md:col-span-2">
+                <label class="block text-xs text-slate-400 mb-1">Nombre del Medicamento</label>
+                <input class="med-name w-full px-3 py-2 rounded-xl text-sm bg-slate-900" placeholder="Ej: Amoxicilina 500mg" required>
+            </div>
+            <div><label class="block text-xs text-slate-400 mb-1">Frecuencia</label><input class="med-freq w-full px-3 py-2 rounded-xl text-sm bg-slate-900" placeholder="Cada 8 horas"></div>
+            <div><label class="block text-xs text-slate-400 mb-1">Duración</label><input class="med-dur w-full px-3 py-2 rounded-xl text-sm bg-slate-900" placeholder="7 días"></div>
+            <div class="md:col-span-2"><label class="block text-xs text-slate-400 mb-1">Instrucción específica</label><input class="med-inst w-full px-3 py-2 rounded-xl text-sm bg-slate-900" placeholder="Tomar después de comer"></div>
+        </div>
+    `;
+    list.appendChild(div);
+    lucide.createIcons({ nodes: [div] });
+};
+window.createPrescription = function() {
+    const selectedVal = document.getElementById('rx-patient').value;
+    const customVal = document.getElementById('rx-patient-custom').value.trim();
+    const patientName = (selectedVal === 'Otro') ? customVal : selectedVal;
+
+    if (!patientName) return window.showToast('Seleccione un paciente', 'error');
+
+    // Recolectar todos los medicamentos
+    const medElements = document.querySelectorAll('.med-item');
+    const medications = Array.from(medElements).map(el => ({
+        name: el.querySelector('.med-name').value,
+        frequency: el.querySelector('.med-freq').value,
+        duration: el.querySelector('.med-dur').value,
+        instruction: el.querySelector('.med-inst').value
+    })).filter(m => m.name !== "");
+
+    if (medications.length === 0) return window.showToast('Agregue al menos un medicamento', 'error');
+
+    window.createFirestoreRecord('prescriptions', {
+        patient_id: patientName, // Este nombre debe ser igual al que tiene el paciente en su perfil
+        age: document.getElementById('rx-age').value,
+        weight: document.getElementById('rx-weight').value || "N/A",
+        medications: medications,
+        notes: document.getElementById('rx-notes').value || "Sin observaciones adicionales.",
+        doctor_id: currentUser.name, // Usamos el nombre completo del doctor para el PDF
+        specialty: currentUser.specialty || "Medicina General",
+        license: currentUser.license || "---",
+        phone: currentUser.phone || "---",
+        address: currentUser.address || "Consultorio Médico",
+        folio: "RX-" + Math.floor(Math.random() * 900000 + 100000),
+        created_at: new Date().toISOString()
+    });
+
+    // Forzar recarga de la página actual para que aparezca en el historial inmediatamente
+    setTimeout(() => { window.renderCurrentPage(); }, 500);
+};
+function renderAppointments(el) {
+    // 1. Obtener y filtrar las citas
+    let appts = getDataByType('appointment');
+    
+    const myName = String(currentUser.name || "").toLowerCase().trim();
+    const myUsername = String(currentUser.username || "").toLowerCase().trim();
+
+    if (currentUser.role === 'patient') {
+        appts = appts.filter(a => {
+            const pId = String(a.patient_id || "").toLowerCase().trim();
+            return pId === myName || pId === myUsername;
+        });
+    } else if (currentUser.role === 'doctor') {
+        appts = appts.filter(a => {
+            const dId = String(a.doctor_id || "").toLowerCase().trim();
+            return dId === myName || dId === myUsername || dId === 'doc1';
+        });
+    }
+
+    // Ordenar las citas para la vista de lista (las más recientes primero)
+    const listAppts = [...appts].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+// 2. Encabezado común con los botones (MODO OSCURO)
+let html = `
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 class="text-2xl font-bold flex items-center gap-2 text-med-text">
+                <i data-lucide="calendar-days" class="text-med-primary"></i> 
+                ${currentUser.role === 'patient' ? 'Mis Citas' : 'Agenda Médica'}
+            </h2>
+            
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <button onclick="window.toggleAppointmentView()" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all flex items-center justify-center gap-2 shadow-sm">
+                    <i data-lucide="${window.isAppointmentListView ? 'calendar' : 'list'}" class="w-4 h-4"></i> 
+                    ${window.isAppointmentListView ? 'Ver Calendario' : 'Ver Lista'}
+                </button>
+                
+                <button onclick="window.openNewAppointmentModal()" class="flex-1 sm:flex-none btn-primary px-4 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nueva Cita
+                </button>
+            </div>
+        </div>
+    `;
+
+    // 3. DECISIÓN: ¿Dibuja la Lista o el Calendario?
+    if (window.isAppointmentListView) {
+        // === VISTA DE LISTA (MODO OSCURO) ===
+        html += `
+        <div class="glass rounded-2xl overflow-hidden fade-in border border-white/5">
+            <div class="divide-y divide-white/5">
+                ${listAppts.length === 0 ? '<p class="text-slate-500 text-sm p-8 text-center bg-white/5">No hay citas registradas</p>' :
+                listAppts.map(a => `
+                <div class="flex items-center justify-between p-4 hover:bg-white/5 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl ${a.status === 'pending' ? 'bg-amber-400/10' : 'bg-emerald-400/10'} flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="calendar" class="w-5 h-5 ${a.status === 'pending' ? 'text-amber-400' : 'text-emerald-400'}"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm text-white">${currentUser.role === 'patient' ? 'Dr. ' + a.doctor_id : 'Paciente: ' + a.patient_id}</p>
+                            <p class="text-xs text-slate-400">${formatDate(a.date)} · ${a.time || '--:--'} · ${a.specialty || 'Consulta'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="status-${a.status} text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-bold">${a.status}</span>
+                        ${(currentUser.role !== 'patient' && a.status === 'pending') ? `
+                        <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'confirmed'})" class="p-2 rounded-lg hover:bg-emerald-400/10 text-emerald-400 transition-colors" title="Confirmar"><i data-lucide="check" class="w-4 h-4"></i></button>
+                        ` : ''}
+                        <button onclick="window.deleteFirestoreRecord('appointments', '${a.__backendId}')" class="p-2 rounded-lg hover:bg-red-400/10 text-red-400 transition-colors" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>`;
+        
+        el.innerHTML = html;
+        lucide.createIcons({ nodes: [el] });
+
+    } else {
+        // === VISTA DE CALENDARIO (FullCalendar) MODO OSCURO ===
+        html += `
+        <div class="glass rounded-2xl p-2 sm:p-6 fade-in border border-white/5">
+            <div id="interactive-calendar" class="w-full min-h-[600px] z-0"></div>
+        </div>`;
+        
+        el.innerHTML = html;
+        lucide.createIcons({ nodes: [el] });
+
+        // Inicializamos FullCalendar igual que antes
+        setTimeout(() => {
+            const calendarEl = document.getElementById('interactive-calendar');
+            if (!calendarEl) return;
+
+            // Formatear los datos de Firebase a un formato que el Calendario entienda
+            const calendarEvents = appts.map(a => {
+                const startTime = a.time ? `${a.date}T${a.time}:00` : a.date;
+                
+                let bgColor = '#6366F1'; // Añil
+                if (a.status === 'pending') bgColor = '#22D3EE'; // Cian
+                if (a.status === 'cancelled') bgColor = '#EF4444'; // Rojo
+
+                const titleText = currentUser.role === 'patient' 
+                    ? `Dr. ${a.doctor_id} (${a.specialty})` 
+                    : `${a.patient_id} - ${a.status === 'pending' ? '⏳' : '✅'}`;
+
+                return {
+                    id: a.__backendId,
+                    title: titleText,
+                    start: startTime,
+                    backgroundColor: bgColor,
+                    extendedProps: { ...a }
+                };
+            });
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'es', 
+                initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth', 
+                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+                slotMinTime: '07:00:00', slotMaxTime: '21:00:00', allDaySlot: false,
+                events: calendarEvents,
+                eventDisplay: 'block', displayEventTime: true,
+                eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: false }, 
+                
+                eventContent: function(arg) {
+                    let timeStr = arg.timeText ? `<b style="background: rgba(0,0,0,0.15); padding: 2px 5px; border-radius: 4px; margin-right: 5px; font-size: 10px;">${arg.timeText}</b>` : '';
+                    return {
+                        html: `<div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; display: flex; align-items: center; padding: 2px 1px;">
+                                  ${timeStr}
+                                  <span style="font-size: 11px; font-weight: 500;">${arg.event.title}</span>
+                               </div>`
+                    };
+                },
+                editable: currentUser.role !== 'patient', 
+                eventDrop: function(info) {
+                    if (confirm(`¿Reprogramar esta cita para el ${info.event.start.toLocaleDateString()} a las ${info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}?`)) {
+                        const newDate = info.event.start.toISOString().split('T')[0];
+                        const newTime = info.event.start.toTimeString().slice(0, 5);
+                        window.updateFirestoreRecord('appointments', info.event.id, { date: newDate, time: newTime, status: 'pending' });
+                        window.showToast('Cita reprogramada.', 'success');
+                    } else { info.revert(); }
+                },
+                eventClick: function(info) {
+                    const props = info.event.extendedProps;
+                    const dateStr = info.event.start.toLocaleDateString();
+                    const timeStr = info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    if (currentUser.role !== 'patient' && props.status === 'pending') {
+                        if(confirm(`Detalles de la cita:\n\nPaciente: ${props.patient_id}\nHora: ${dateStr} - ${timeStr}\n\n¿Deseas CONFIRMAR esta cita?`)) {
+                            window.updateFirestoreRecord('appointments', info.event.id, { status: 'confirmed' });
+                        }
+                    } else {
+                        alert(`Detalles de la Cita:\n\nPaciente: ${props.patient_id}\nDoctor: ${props.doctor_id}\nFecha: ${dateStr}\nHora: ${timeStr}\nEstado: ${props.status.toUpperCase()}`);
+                    }
+                }
+            });
+            calendar.render();
+        }, 150);
+    }
+}
+
+// ========== SISTEMA DE CITAS INTELIGENTE ==========
+window.openNewAppointmentModal = function() {
+    const isPatient = currentUser.role === 'patient';
+    
+    // Si es paciente, bloqueamos su nombre. Si es admin/doctor, pueden elegir para quién es la cita.
+    const patientField = isPatient ? 
+        `<input id="appt-patient" type="hidden" value="${currentUser.name}">
+         <div class="px-3 py-2.5 bg-white/5 rounded-xl text-sm text-slate-300 font-medium border border-white/10 cursor-not-allowed"><i data-lucide="user" class="w-4 h-4 inline mr-2 text-emerald-400"></i>${currentUser.name}</div>` : 
+        `<select id="appt-patient" class="w-full px-3 py-2 rounded-xl text-sm">
+            <option value="">Seleccionar paciente...</option>
+            ${getDataByType('user').filter(u => u.role === 'patient').map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
+        </select>`;
+
+    window.openModal(`
+        <div class="p-6">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i data-lucide="calendar-plus" class="w-5 h-5 text-cyan-400"></i> Agendar Cita Médica</h3>
+            <form onsubmit="return false;" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Paciente</label>
+                    ${patientField}
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">1. Especialidad Requerida</label>
+                    <select id="appt-specialty" onchange="window.filterDoctorsBySpecialty()" class="w-full px-3 py-2 rounded-xl text-sm border-cyan-500/30 focus:border-cyan-400 transition-colors">
+                        <option value="">Selecciona especialidad...</option>
+                        <option value="Medicina General">Medicina General</option>
+                        <option value="Cardiología">Cardiología</option>
+                        <option value="Dermatología">Dermatología</option>
+                        <option value="Pediatría">Pediatría</option>
+                        <option value="Neurología">Neurología</option>
+                        <option value="Traumatología">Traumatología</option>
+                        <option value="Ginecología">Ginecología</option>
+                        <option value="Oftalmología">Oftalmología</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">2. Doctor Disponible</label>
+                    <select id="appt-doctor" class="w-full px-3 py-2 rounded-xl text-sm bg-black/20" disabled>
+                        <option value="">Esperando especialidad...</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Fecha</label>
+                        <input id="appt-date" type="date" class="w-full px-3 py-2 rounded-xl text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Hora</label>
+                        <select id="appt-time" class="w-full px-3 py-2 rounded-xl text-sm">
+                            <option value="09:00">09:00</option>
+                            <option value="09:30">09:30</option>
+                            <option value="10:00">10:00</option>
+                            <option value="10:30">10:30</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:30">11:30</option>
+                            <option value="12:00">12:00</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:30">16:30</option>
+                            <option value="17:00">17:00</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-white/10 mt-6">
+                    <button onclick="window.createAppointment()" class="w-full btn-primary text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-cyan-500/20">Confirmar Reservación</button>
+                </div>
+            </form>
+        </div>
+    `);
+}
+
+// Función mágica que filtra los doctores
+window.filterDoctorsBySpecialty = function() {
+    const specialty = document.getElementById('appt-specialty').value;
+    const doctorSelect = document.getElementById('appt-doctor');
+    
+    if (!specialty) {
+        doctorSelect.innerHTML = '<option value="">Esperando especialidad...</option>';
+        doctorSelect.disabled = true;
+        doctorSelect.classList.add('bg-black/20');
+        return;
+    }
+
+    // Buscamos doctores que tengan la especialidad seleccionada
+    const availableDoctors = getDataByType('user').filter(u => u.role === 'doctor' && u.specialty === specialty);
+    
+    if (availableDoctors.length === 0) {
+        doctorSelect.innerHTML = '<option value="">No hay doctores en esta área aún</option>';
+        doctorSelect.disabled = true;
+        doctorSelect.classList.add('bg-black/20');
+    } else {
+        doctorSelect.innerHTML = '<option value="">Selecciona a tu médico...</option>' + 
+            availableDoctors.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        doctorSelect.disabled = false;
+        doctorSelect.classList.remove('bg-black/20');
+    }
+}
+
+window.createAppointment = function() {
+    const patient = document.getElementById('appt-patient').value;
+    const specialty = document.getElementById('appt-specialty').value;
+    const doctor = document.getElementById('appt-doctor').value;
+    const date = document.getElementById('appt-date').value;
+    const time = document.getElementById('appt-time').value;
+    
+    if (!patient || !specialty || !doctor || !date) {
+        return window.showToast('Por favor completa todos los pasos', 'error');
+    }
+    
+    window.createFirestoreRecord('appointments', { 
+        patient_id: patient, 
+        doctor_id: doctor, 
+        specialty: specialty, // Guardamos la especialidad en la cita
+        date: date, 
+        time: time, 
+        status: 'pending', 
+        created_at: new Date().toISOString() 
+    });
+}
+
+
+// ========== SISTEMA DE CHAT ESTILO WHATSAPP ==========
+window.currentChatPartner = null;
+
+
+function renderChat(el) {
+    // 1. Los administradores no pueden leer chats por privacidad
+    if (currentUser.role === 'admin') {
+        el.innerHTML = `<div class="glass rounded-2xl p-8 text-center mt-10 max-w-md mx-auto fade-in glow-sm">
+            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 border border-slate-700">
+                <i data-lucide="shield-alert" class="w-8 h-8 text-slate-400"></i>
+            </div>
+            <h3 class="text-lg font-bold text-med-text mb-2">Acceso Restringido</h3>
+            <p class="text-sm text-slate-400">Por privacidad médica, los administradores no tienen acceso a los chats.</p>
+        </div>`;
+        return;
+    }
+
+    const isDoctor = currentUser.role === 'doctor';
+    const myName = String(currentUser.name || "").toLowerCase().trim();
+    const myUsername = String(currentUser.username || "").toLowerCase().trim();
+    
+    const allMessages = getDataByType('message');
+    const allUsers = getDataByType('user');
+    
+    // VISTA 1: LISTA DE CHATS (Estilo WhatsApp)
+    if (!window.currentChatPartner) {
+        let contactsMap = new Map();
+
+        // A) Cargar contactos sugeridos según el rol opuesto
+        const oppositeRole = isDoctor ? 'patient' : 'doctor';
+        const availableContacts = allUsers.filter(u => u.role === oppositeRole);
+        
+        availableContacts.forEach(user => {
+            const contactName = user.name || user.username;
+            if (contactName) {
+                contactsMap.set(contactName.toLowerCase().trim(), { 
+                    displayName: contactName, 
+                    lastMsg: 'Toca para iniciar chat', 
+                    time: '1970-01-01T00:00:00.000Z', 
+                    unread: 0
+                });
+            }
+        });
+
+       // B) Sobrescribimos con el historial de mensajes reales
+       allMessages.forEach(m => {
+            const sender = String(m.sender || "").toLowerCase().trim();
+            const receiver = String(m.receiver || "").toLowerCase().trim();
+            
+            let partnerKey = null;
+            let partnerDisplayName = "";
+
+            if (sender === myName || sender === myUsername) {
+                partnerKey = receiver;
+                partnerDisplayName = m.receiver; // Guardamos el nombre tal cual viene
+            } else if (receiver === myName || receiver === myUsername) {
+                partnerKey = sender;
+                partnerDisplayName = m.sender;
+            }
+
+            if (partnerKey && partnerKey !== myName && partnerKey !== myUsername) {
+                const isUnread = (receiver === myName || receiver === myUsername) && !m.read;
+                const messageText = m.deleted ? "🚫 Mensaje eliminado" : (m.image ? "📷 Foto" : m.message);
+                
+                if (!contactsMap.has(partnerKey)) {
+                    contactsMap.set(partnerKey, { 
+                        displayName: partnerDisplayName, 
+                        lastMsg: messageText, 
+                        time: m.created_at, 
+                        unread: isUnread ? 1 : 0 
+                    });
+                } else {
+                    let contact = contactsMap.get(partnerKey);
+                    // CRUCIAL: Solo actualizamos si el mensaje es cronológicamente más reciente
+                    if (new Date(m.created_at) > new Date(contact.time)) {
+                        contact.lastMsg = messageText;
+                        contact.time = m.created_at;
+                        contact.displayName = partnerDisplayName; // Mantenemos el nombre más fresco
+                    }
+                    if (isUnread) contact.unread += 1;
+                    contactsMap.set(partnerKey, contact);
+                }
+            }
+        });
+
+        // C) ORDENAMIENTO CRÍTICO: El chat con el mensaje más reciente (time) va arriba.
+        let contacts = Array.from(contactsMap.values()).sort((a, b) => {
+            return new Date(b.time) - new Date(a.time);
+        });
+
+        el.innerHTML = `
+        <div class="glass rounded-2xl overflow-hidden fade-in h-full flex flex-col border border-white/5">
+            <div class="p-5 border-b border-white/5 bg-[#202c33] flex justify-between items-center">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i data-lucide="message-circle" class="w-5 h-5 text-emerald-500"></i> Chats
+                </h3>
+            </div>
+            <div class="divide-y divide-white/5 overflow-y-auto flex-1 custom-scrollbar bg-[#111b21]">
+                ${contacts.length === 0 ? 
+                    `<div class="p-10 text-center"><i data-lucide="message-square-off" class="w-10 h-10 text-slate-600 mx-auto mb-3"></i><p class="text-slate-400 text-sm">No hay contactos disponibles.</p></div>` :
+                contacts.map(c => `
+                    <div class="flex items-center justify-between p-4 hover:bg-white/5 transition-all cursor-pointer group" onclick="window.openChatWith('${c.displayName}')">
+                        <div class="flex items-center gap-4 w-full">
+                            <div class="relative w-12 h-12 rounded-full bg-gradient-to-br ${isDoctor ? 'from-emerald-400 to-emerald-600' : 'from-indigo-400 to-indigo-600'} flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                                ${c.displayName.charAt(0).toUpperCase()}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <p class="font-bold text-sm text-white truncate">${c.displayName}</p>
+                                    ${c.time !== '1970-01-01T00:00:00.000Z' ? `<p class="text-[10px] text-emerald-500">${new Date(c.time).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</p>` : ''}
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <p class="text-xs ${c.unread > 0 ? 'text-white font-medium' : 'text-slate-400'} truncate pr-4">${c.lastMsg}</p>
+                                    ${c.unread > 0 ? `<span class="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-[10px] font-bold text-[#111b21] flex-shrink-0 animate-pulse">${c.unread}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+        lucide.createIcons({ nodes: [el] });
+        return;
+    }
+
+    // VISTA 2: CHAT PRIVADO
+    const partner = window.currentChatPartner;
+    const partnerClean = partner.toLowerCase().trim();
+    
+    // Marcar como leídos
+    allMessages.filter(m => 
+        String(m.sender).toLowerCase().trim() === partnerClean && 
+        (String(m.receiver).toLowerCase().trim() === myName || String(m.receiver).toLowerCase().trim() === myUsername) && 
+        !m.read
+    ).forEach(m => window.updateFirestoreRecord('messages', m.__backendId, { read: true }));
+
+    // Filtrar mensajes de la conversación
+    const chatMessages = allMessages.filter(m => {
+        const mSender = String(m.sender || "").toLowerCase().trim();
+        const mReceiver = String(m.receiver || "").toLowerCase().trim();
+        
+        const iSent = (mSender === myName || mSender === myUsername) && mReceiver === partnerClean;
+        const iReceived = mSender === partnerClean && (mReceiver === myName || mReceiver === myUsername);
+        
+        return iSent || iReceived;
+    }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    el.innerHTML = `
+    <div class="rounded-2xl h-full flex flex-col overflow-hidden fade-in border border-white/5" style="max-height: calc(100% - 1rem); background-color: #0B141A;">
+        
+        <div class="p-3 flex items-center justify-between bg-[#202c33] z-10 shadow-sm">
+            <div class="flex items-center gap-3">
+                <button onclick="window.closeChat()" class="p-2 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-all">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br ${isDoctor ? 'from-emerald-400 to-emerald-600' : 'from-indigo-400 to-indigo-600'} flex items-center justify-center text-white text-sm font-bold shadow-md">
+                    ${partner.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <p class="font-bold text-sm text-white leading-tight">${partner}</p>
+                    <p class="text-[10px] text-emerald-500 flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> Encriptado</p>
+                </div>
+            </div>
+            
+            <button onclick="window.startVideoCall()" class="w-10 h-10 rounded-full bg-[#00a884]/20 hover:bg-[#00a884]/40 flex items-center justify-center text-[#00a884] transition-all shadow-sm" title="Iniciar Videoconsulta">
+                <i data-lucide="video" class="w-5 h-5 ml-0.5"></i>
+            </button>
+        </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative">
+            <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
+            
+            <div class="relative z-10 flex flex-col space-y-3">
+                ${chatMessages.length === 0 ? 
+                    '<div class="text-center bg-[#182229] p-3 rounded-xl mx-auto mt-4 border border-white/5 shadow-md"><p class="text-xs text-[#8696a0]">No hay mensajes previos.</p></div>' :
+                    chatMessages.map(m => {
+                        const mSender = String(m.sender || "").toLowerCase().trim();
+                        const isMine = mSender === myName || mSender === myUsername;
+                        
+                        return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'} fade-in mb-2">
+                            <div class="${isMine ? 'bg-[#005c4b]' : 'bg-[#202c33]'} text-[#e9edef] px-3 py-1.5 max-w-[85%] rounded-lg shadow-sm relative group min-w-[80px]">
+                                
+                                ${isMine && !m.deleted ? `
+                                    <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-black/20 rounded-md p-0.5 z-20">
+                                        <button onclick="window.editMessage('${m.__backendId}', '${m.message}')" class="p-1 hover:text-cyan-400"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                                        <button onclick="window.deleteMessageForEveryone('${m.__backendId}')" class="p-1 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                                    </div>
+                                ` : ''}
+
+                                ${m.image ? `
+                                    <div class="mb-1 mt-1 rounded overflow-hidden cursor-pointer" onclick="window.openImageFull('${m.image}')">
+                                        <img src="${m.image}" class="max-w-full h-auto rounded border border-white/10 shadow-inner">
+                                    </div>
+                                ` : ''}
+                                
+                                <p class="text-[14px] leading-snug ${m.deleted ? 'italic text-slate-500' : ''} pr-10 pb-2">
+                                    ${m.deleted ? '🚫 Este mensaje fue eliminado' : m.message}
+                                    ${m.edited && !m.deleted ? '<span class="text-[9px] text-slate-400 ml-1">(editado)</span>' : ''}
+                                </p>
+
+                                <div class="absolute bottom-1 right-2 flex items-center gap-1">
+                                    <p class="text-[9px] text-[#8696a0]">${new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</p>
+                                    ${isMine ? `<i data-lucide="check-check" class="w-[12px] h-[12px] ${m.read ? 'text-[#53bdeb]' : 'text-[#8696a0]'}"></i>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('')
+                }
+            </div>
+        </div>
+        
+        <div class="p-3 bg-[#202c33] flex items-center gap-2 z-10">
+            <button onclick="document.getElementById('chat-file-input').click()" class="p-2 text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="paperclip" class="w-6 h-6"></i>
+            </button>
+            <input type="file" id="chat-file-input" class="hidden" accept="image/*" onchange="window.handleChatImage(this)">
+            
+            <input id="chat-input" class="flex-1 px-4 py-3 rounded-full text-[15px] bg-[#2a3942] text-[#d1d7db] border-none focus:outline-none placeholder-[#8696a0]" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') window.sendMessage()">
+            
+            <button onclick="window.sendMessage()" class="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white shadow-md hover:bg-[#008f6f] transition-colors flex-shrink-0">
+                <i data-lucide="send" class="w-5 h-5 ml-1"></i>
+            </button>
+        </div>
+    </div>`;
+    lucide.createIcons({ nodes: [el] });
+    setTimeout(() => {
+        const box = document.getElementById('chat-messages');
+        if(box) box.scrollTop = box.scrollHeight;
+    }, 50);
+}
+
+
+// === FUNCIONES DE APOYO DEL CHAT ===
+window.openChatWith = function(partnerName) {
+    window.currentChatPartner = partnerName;
+    window.renderCurrentPage();
+}
+
+window.closeChat = function() {
+    window.currentChatPartner = null;
+    window.renderCurrentPage();
+}
+
+window.sendMessage = function() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if(!msg || !window.currentChatPartner) return;
+    
+    // IMPORTANTE: Usamos currentUser.name para que coincida con el catálogo
+    const myName = currentUser.name; 
+
+    window.createFirestoreRecord('messages', { 
+        sender: myName, 
+        receiver: window.currentChatPartner, 
+        message: msg, 
+        read: false,
+        created_at: new Date().toISOString() 
+    });
+    
+    input.value = '';
+    // No hace falta renderizar, el onSnapshot de setupRealtimeListeners lo hará solo
+};
+
+// ELIMINAR PARA TODOS
+window.deleteMessageForEveryone = function(id) {
+    if(confirm("¿Eliminar este mensaje para todos?")) {
+        window.updateFirestoreRecord('messages', id, { 
+            message: "Este mensaje fue eliminado", 
+            deleted: true,
+            image: null // Si tenía imagen, la borramos
+        });
+    }
+};
+
+// EDITAR MENSAJE
+window.editMessage = function(id, currentMsg) {
+    const newMsg = prompt("Edita tu mensaje:", currentMsg);
+    if(newMsg && newMsg.trim() !== "" && newMsg !== currentMsg) {
+        window.updateFirestoreRecord('messages', id, { 
+            message: newMsg.trim(), 
+            edited: true 
+        });
+    }
+};
+
+// ENVIAR IMAGEN (Convertir a Base64 para guardado rápido en Firestore)
+window.handleChatImage = function(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64Image = e.target.result;
+            window.createFirestoreRecord('messages', { 
+                sender: currentUser.name, 
+                receiver: window.currentChatPartner, 
+                message: "📷 Foto", 
+                image: base64Image,
+                read: false,
+                created_at: new Date().toISOString() 
+            });
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+// AMPLIAR IMAGEN
+window.openImageFull = function(src) {
+    window.openModal(`<div class="p-2 flex justify-center bg-black"><img src="${src}" class="max-h-[85vh] rounded-lg"></div>`);
+};
+
+window.sendMessage = function() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if(!msg || !window.currentChatPartner) return;
+    
+    window.createFirestoreRecord('messages', { 
+        sender: currentUser.name, 
+        receiver: window.currentChatPartner, 
+        message: msg, 
+        read: false,
+        created_at: new Date().toISOString() 
+    });
+    input.value = '';
+};
+
+// ========== SISTEMA DE TELEMEDICINA (JITSI MEET) ==========
+window.startVideoCall = function() {
+    if (!window.currentChatPartner) return;
+    
+    // 1. Limpiamos los nombres para quitar espacios o caracteres raros
+    const myNameClean = String(currentUser.name || currentUser.username).replace(/[^a-zA-Z0-9]/g, '');
+    const partnerClean = String(window.currentChatPartner).replace(/[^a-zA-Z0-9]/g, '');
+    
+    // 2. Ordenamos los nombres alfabéticamente. 
+    // Esto asegura que la sala "Carlos_Maria" sea la misma que "Maria_Carlos"
+    const roomName = `MediConnect_${[myNameClean, partnerClean].sort().join('_')}`;
+    
+    // 3. Generamos la URL segura de Jitsi
+    const jitsiUrl = `https://meet.jit.si/${roomName}`;
+    
+    // 4. Enviamos un mensaje automático al chat para avisar a la otra persona
+    const msgAviso = `🎥 He iniciado una videoconsulta. Haz clic en el ícono de la cámara de video 📹 arriba para unirte, o entra directo a este enlace copiándolo en tu navegador: ${jitsiUrl}`;
+    
+    window.createFirestoreRecord('messages', { 
+        sender: currentUser.name, 
+        receiver: window.currentChatPartner, 
+        message: msgAviso, 
+        read: false,
+        created_at: new Date().toISOString() 
+    });
+
+    // 5. Abrimos la videollamada en una nueva pestaña
+    window.open(jitsiUrl, '_blank');
+    window.showToast('Conectando a la sala virtual...', 'success');
+};
+
+// ========== ACTUALIZACIÓN DE NOTIFICACIONES ==========
+window.updateNotifBadge = function() {
+    const myName = currentUser.name;
+    const myUsername = currentUser.username;
+    
+    const appts = getDataByType('appointment');
+    const pendingAppts = appts.filter(a => a.status === 'pending' && (currentUser.role === 'admin' || a.doctor_id === myName || a.doctor_id === myUsername)).length;
+    
+    const unreadMsgs = getDataByType('message').filter(m => (m.receiver === myName || m.receiver === myUsername) && !m.read).length;
+    
+    const totalAlerts = pendingAppts + unreadMsgs;
+    const badge = document.getElementById('notif-badge');
+    
+    if (totalAlerts > 0) { 
+        badge.textContent = totalAlerts; 
+        badge.classList.remove('hidden'); 
+        badge.classList.add('animate-pulse');
+    } else { 
+        badge.classList.add('hidden'); 
+        badge.classList.remove('animate-pulse');
+    }
+}
+
+// ========== MÓDULO ADMINISTRADOR: GESTIÓN DE USUARIOS ==========
+function getRoleColor(role) {
+    if (role === 'admin') return 'from-cyan-400 to-cyan-600';
+    if (role === 'doctor') return 'from-indigo-400 to-indigo-600';
+    return 'from-emerald-400 to-emerald-600';
+}
+
+function getRoleLabel(role) {
+    if (role === 'admin') return 'Administrador';
+    if (role === 'doctor') return 'Doctor';
+    return 'Paciente';
+}
+
+function renderUsers(el) {
+    const users = getDataByType('user');
+    
+    el.innerHTML = `
+    <div class="flex gap-3 mb-6">
+        <button onclick="window.openNewUserModal()" class="btn-primary text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> Nuevo Usuario
+        </button>
+    </div>
+    
+    <div class="glass rounded-2xl overflow-hidden fade-in">
+        <div class="p-4 border-b border-white/5 flex justify-between items-center">
+            <h3 class="font-bold text-med-text">Usuarios del Sistema</h3>
+        </div>
+        <div class="divide-y divide-white/5">
+            ${users.length === 0 ? '<p class="p-6 text-center text-slate-400 text-sm">No hay usuarios registrados.</p>' : 
+            users.map(u => `
+                <div class="flex items-center justify-between p-4 hover:bg-white/5 transition-all group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br ${getRoleColor(u.role)} flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+                            ${u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm text-med-text">${u.name || 'Sin nombre'}</p>
+                            <p class="text-xs text-slate-400">${u.email || u.username || 'Sin correo'} · ${getRoleLabel(u.role)}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-400/10 text-emerald-400">Activo</span>
+                        
+                        <div class="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <button onclick="window.openEditUserModal('${u.__backendId}')" class="p-2 rounded-lg bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20 transition-all" title="Editar">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="window.deleteUser('${u.__backendId}', '${u.name}')" class="p-2 rounded-lg bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-all" title="Eliminar">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    </div>`;
+}
+
+window.toggleDoctorFields = function(role, containerId = 'nu-doctor-fields') {
+    const docFields = document.getElementById(containerId);
+    if (docFields) docFields.style.display = role === 'doctor' ? 'block' : 'none';
+}
+
+window.openNewUserModal = function() {
+    window.openModal(`
+    <div class="p-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-cyan-400/10 flex items-center justify-center"><i data-lucide="user-plus" class="w-5 h-5 text-cyan-400"></i></div>
+            <h3 class="text-lg font-bold">Registro de Nuevo Usuario</h3>
+        </div>
+        
+        <form id="new-user-form" onsubmit="return false;" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Rol en el sistema</label>
+                    <select id="nu-role" onchange="window.toggleDoctorFields(this.value, 'nu-doctor-fields')" class="w-full px-3 py-2 rounded-xl text-sm">
+                        <option value="patient">Paciente</option>
+                        <option value="doctor">Doctor</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nombre Completo</label>
+                    <input id="nu-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Juan Pérez" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico</label>
+                    <input id="nu-email" type="email" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="correo@ejemplo.com" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Contraseña</label>
+                    <input id="nu-password" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Mínimo 6 caracteres" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono</label>
+                    <input id="nu-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="10 dígitos">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Fecha de Nacimiento</label>
+                    <input id="nu-dob" type="date" class="w-full px-3 py-2 rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Género</label>
+                    <select id="nu-gender" class="w-full px-3 py-2 rounded-xl text-sm">
+                        <option value="">Seleccionar...</option>
+                        <option value="M">Masculino</option>
+                        <option value="F">Femenino</option>
+                        <option value="O">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Tipo de Sangre</label>
+                    <select id="nu-blood" class="w-full px-3 py-2 rounded-xl text-sm">
+                        <option value="">Desconocido</option>
+                        <option value="O+">O+</option><option value="O-">O-</option>
+                        <option value="A+">A+</option><option value="A-">A-</option>
+                        <option value="B+">B+</option><option value="B-">B-</option>
+                        <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Dirección Completa</label>
+                    <input id="nu-address" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Calle, número, colonia, ciudad...">
+                </div>
+                
+                <div id="nu-doctor-fields" class="md:col-span-2" style="display: none;">
+                    <div class="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Especialidad Médica</label>
+                            <input id="nu-specialty" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Cardiología">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Cédula Profesional</label>
+                            <input id="nu-license" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Número de cédula">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-4 border-t border-white/10 mt-6">
+                <button onclick="window.saveNewUser()" class="w-full btn-primary text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-cyan-500/20">Registrar Usuario</button>
+            </div>
+        </form>
+    </div>
+    `);
+}
+
+window.saveNewUser = async function() {
+    const role = document.getElementById('nu-role').value;
+    const name = document.getElementById('nu-name').value.trim();
+    const email = document.getElementById('nu-email').value.trim();
+    const password = document.getElementById('nu-password').value.trim();
+    
+    if (!name || !email || !password) return window.showToast('Nombre, correo y contraseña son obligatorios', 'error');
+
+    const userData = {
+        role: role,
+        name: name,
+        email: email,
+        password: password, 
+        username: email.split('@')[0], 
+        phone: document.getElementById('nu-phone').value.trim(),
+        dob: document.getElementById('nu-dob').value,
+        gender: document.getElementById('nu-gender').value,
+        blood_type: document.getElementById('nu-blood').value,
+        address: document.getElementById('nu-address').value.trim(),
+        created_at: new Date().toISOString()
+    };
+
+    if (role === 'doctor') {
+        userData.specialty = document.getElementById('nu-specialty').value.trim();
+        userData.license = document.getElementById('nu-license').value.trim();
+    }
+
+    try {
+        const secondaryApp = initializeApp(firebaseConfig, "AppTemp" + Date.now());
+        const secondaryAuth = getAuth(secondaryApp);
+        const userCred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        await signOut(secondaryAuth);
+        
+        await setDoc(doc(db, 'users', userCred.user.uid), userData);
+        
+        window.showToast('Usuario creado exitosamente', 'success');
+        window.closeModal();
+    } catch(error) {
+        if(error.code === 'auth/email-already-in-use') {
+            // TRUCO DE RECUPERACIÓN: Si el Auth ya existe "oculto", intentamos iniciar sesión 
+            // para recuperar su ID interno y volver a crear su perfil en tu tabla.
+            try {
+                const tempApp = initializeApp(firebaseConfig, "AppTempLogin" + Date.now());
+                const tempAuth = getAuth(tempApp);
+                const signInCred = await signInWithEmailAndPassword(tempAuth, email, password);
+                
+                // Si la contraseña es correcta, revivimos al usuario en tu base de datos
+                await setDoc(doc(db, 'users', signInCred.user.uid), userData);
+                await signOut(tempAuth);
+                
+                window.showToast('Cuenta restaurada y actualizada exitosamente', 'success');
+                window.closeModal();
+            } catch (loginError) {
+                // Si la contraseña no es la misma que tenía originalmente en Firebase Auth
+                window.showToast('Ese correo ya existe pero con otra contraseña. Bórralo manualmente en Firebase Console -> Authentication.', 'error');
+            }
+        } else if (error.code === 'auth/weak-password') {
+            window.showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+        } else {
+            window.showToast('Error: ' + error.message, 'error');
+        }
+    }
+}
+
+window.openEditUserModal = function(id) {
+    const user = allData.find(d => d.__backendId === id);
+    if(!user) return;
+
+    window.openModal(`
+    <div class="p-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-amber-400/10 flex items-center justify-center"><i data-lucide="edit" class="w-5 h-5 text-amber-400"></i></div>
+            <h3 class="text-lg font-bold">Editar Datos Personales</h3>
+        </div>
+        
+        <form id="edit-user-form" onsubmit="return false;" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Rol en el sistema</label>
+                    <select id="eu-role" onchange="window.toggleDoctorFields(this.value, 'eu-doctor-fields')" class="w-full px-3 py-2 rounded-xl text-sm">
+                        <option value="patient" ${user.role === 'patient' ? 'selected' : ''}>Paciente</option>
+                        <option value="doctor" ${user.role === 'doctor' ? 'selected' : ''}>Doctor</option>
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                    </select>
+                </div>
+
+                
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nombre Completo</label>
+                    <input id="eu-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.name || ''}" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico</label>
+                    <input id="eu-email" type="email" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.email || ''}" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Contraseña</label>
+                    <input id="eu-password" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.password || ''}" placeholder="Escribe para cambiarla">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono</label>
+                    <input id="eu-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.phone || ''}">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Fecha de Nacimiento</label>
+                    <input id="eu-dob" type="date" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.dob || ''}">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Género</label>
+                    <select id="eu-gender" class="w-full px-3 py-2 rounded-xl text-sm">
+                        <option value="" ${!user.gender ? 'selected' : ''}>Seleccionar...</option>
+                        <option value="M" ${user.gender === 'M' ? 'selected' : ''}>Masculino</option>
+                        <option value="F" ${user.gender === 'F' ? 'selected' : ''}>Femenino</option>
+                        <option value="O" ${user.gender === 'O' ? 'selected' : ''}>Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Tipo de Sangre</label>
+                    <select id="eu-blood" class="w-full px-3 py-2 rounded-xl text-sm">
+                        <option value="" ${!user.blood_type ? 'selected' : ''}>Desconocido</option>
+                        <option value="O+" ${user.blood_type === 'O+' ? 'selected' : ''}>O+</option><option value="O-" ${user.blood_type === 'O-' ? 'selected' : ''}>O-</option>
+                        <option value="A+" ${user.blood_type === 'A+' ? 'selected' : ''}>A+</option><option value="A-" ${user.blood_type === 'A-' ? 'selected' : ''}>A-</option>
+                        <option value="B+" ${user.blood_type === 'B+' ? 'selected' : ''}>B+</option><option value="B-" ${user.blood_type === 'B-' ? 'selected' : ''}>B-</option>
+                        <option value="AB+" ${user.blood_type === 'AB+' ? 'selected' : ''}>AB+</option><option value="AB-" ${user.blood_type === 'AB-' ? 'selected' : ''}>AB-</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Dirección Completa</label>
+                    <input id="eu-address" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.address || ''}">
+                </div>
+                
+                <div id="eu-doctor-fields" class="md:col-span-2" style="display: ${user.role === 'doctor' ? 'block' : 'none'};">
+                    <div class="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Especialidad Médica</label>
+                            <input id="eu-specialty" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.specialty || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Cédula Profesional</label>
+                            <input id="eu-license" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.license || ''}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-4 border-t border-white/10 mt-6">
+                <button onclick="window.saveEditUser('${id}')" class="w-full btn-primary text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-cyan-500/20">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+    `);
+}
+
+window.saveEditUser = function(id) {
+    const role = document.getElementById('eu-role').value;
+    const name = document.getElementById('eu-name').value.trim();
+    const password = document.getElementById('eu-password').value.trim(); // <-- CAPTURAMOS NUEVA CONTRASEÑA
+    
+    if (!name) return window.showToast('El nombre no puede quedar vacío', 'error');
+
+    const updatedData = {
+        role: role,
+        name: name,
+        email: document.getElementById('eu-email').value.trim(),
+        phone: document.getElementById('eu-phone').value.trim(),
+        dob: document.getElementById('eu-dob').value,
+        gender: document.getElementById('eu-gender').value,
+        blood_type: document.getElementById('eu-blood').value,
+        address: document.getElementById('eu-address').value.trim(),
+        updated_at: new Date().toISOString()
+    };
+
+    // Solo actualizamos la contraseña si escribieron algo
+    if (password) {
+        updatedData.password = password;
+    }
+
+    if (role === 'doctor') {
+        updatedData.specialty = document.getElementById('eu-specialty').value.trim();
+        updatedData.license = document.getElementById('eu-license').value.trim();
+    }
+
+    window.updateFirestoreRecord('users', id, updatedData);
+    window.closeModal();
+}
+window.deleteUser = function(id, name) {
+    window.openModal(`
+    <div class="p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+            <i data-lucide="alert-triangle" class="w-8 h-8 text-red-500"></i>
+        </div>
+        <h3 class="text-xl font-bold mb-2 text-med-text">¿Eliminar usuario?</h3>
+        <p class="text-sm text-slate-400 mb-6">Estás a punto de eliminar permanentemente a <strong>${name || 'este usuario'}</strong> del sistema. Esta acción no se puede deshacer.</p>
+        
+        <div class="flex gap-3 justify-center">
+            <button onclick="window.closeModal()" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 transition-all text-slate-300">Cancelar</button>
+            <button onclick="window.confirmDeleteUser('${id}')" class="px-6 py-2.5 rounded-xl text-sm font-bold btn-danger text-white shadow-lg shadow-red-500/20">Eliminar Definitivamente</button>
+        </div>
+    </div>
+    `);
+}
+
+window.confirmDeleteUser = async function(id) {
+    // 1. Encontrar al usuario que vamos a borrar en nuestra data local
+    const userToDelete = allData.find(d => d.__backendId === id && d.type === 'user');
+    
+    if (userToDelete) {
+        // Obtenemos sus identificadores (nombre y username)
+        const uName = userToDelete.name;
+        const uUsername = userToDelete.username;
+
+        // 2. Filtrar todos los registros (citas, recetas, historial, notas) donde aparezca
+        const relatedRecords = allData.filter(record => {
+            // Buscamos si es el paciente o el doctor de ese registro
+            const isPatient = record.patient_id === uName || record.patient_id === uUsername;
+            const isDoctor = record.doctor_id === uName || record.doctor_id === uUsername;
+            // Excluimos el registro del propio perfil de usuario para no borrarlo dos veces
+            return (isPatient || isDoctor) && record.type !== 'user';
+        });
+
+        // 3. Borrar todos sus registros asociados uno por uno en Firestore
+        for (const record of relatedRecords) {
+            // Mapeamos el 'type' a su colección correcta en la base de datos
+            let collectionName = record.type;
+            if (record.type === 'health_profile') collectionName = 'health_profiles';
+            else collectionName += 's'; // appointment -> appointments, prescription -> prescriptions, etc.
+
+            try {
+                await deleteDoc(doc(db, collectionName, record.__backendId));
+            } catch (e) {
+                console.error("No se pudo borrar el registro asociado:", e);
+            }
+        }
+    }
+
+    // 4. Finalmente, borramos el documento principal del perfil del usuario
+    window.deleteFirestoreRecord('users', id);
+    window.closeModal();
+    window.showToast('Usuario y todo su historial eliminados', 'success');
+}
+
+// ========== MÓDULO DE ESPECIALIDADES ==========
+function renderSpecialties(el) {
+    // Obtenemos a todos los doctores reales de la base de datos
+    const doctors = getDataByType('user').filter(u => u.role === 'doctor');
+
+    const SPECIALTIES_DATA = [
+        { name: 'Medicina General', icon: 'stethoscope', color: 'cyan' },
+        { name: 'Cardiología', icon: 'heart', color: 'rose' },
+        { name: 'Dermatología', icon: 'scan', color: 'indigo' },
+        { name: 'Pediatría', icon: 'baby', color: 'emerald' },
+        { name: 'Neurología', icon: 'brain', color: 'purple' },
+        { name: 'Traumatología', icon: 'bone', color: 'amber' },
+        { name: 'Ginecología', icon: 'user', color: 'pink' },
+        { name: 'Oftalmología', icon: 'eye', color: 'blue' }
+    ];
+
+    let html = '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 fade-in">';
+
+    SPECIALTIES_DATA.forEach(spec => {
+        // Contamos cuántos doctores tienen esta especialidad asignada
+        const docCount = doctors.filter(d => d.specialty === spec.name).length;
+        
+        html += `
+        <div class="glass rounded-2xl p-6 text-center glow-sm hover:scale-[1.02] transition-all cursor-pointer group" onclick="window.manageSpecialty('${spec.name}', '${spec.icon}', '${spec.color}')">
+            <div class="w-14 h-14 rounded-2xl bg-${spec.color}-400/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-${spec.color}-400/20 transition-all border border-${spec.color}-400/20">
+                <i data-lucide="${spec.icon}" class="w-7 h-7 text-${spec.color}-400"></i>
+            </div>
+            <h4 class="font-bold text-med-text mb-1 text-sm">${spec.name}</h4>
+            <p class="text-xs text-slate-400">${docCount} doctores</p>
+        </div>`;
+    });
+
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+// Modal para administrar los doctores de una especialidad
+window.manageSpecialty = function(specName, icon, color) {
+    const allDoctors = getDataByType('user').filter(u => u.role === 'doctor');
+    const specDoctors = allDoctors.filter(d => d.specialty === specName);
+    const otherDoctors = allDoctors.filter(d => d.specialty !== specName);
+
+    window.openModal(`
+    <div class="p-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-xl bg-${color}-400/10 flex items-center justify-center border border-${color}-400/20">
+                <i data-lucide="${icon}" class="w-6 h-6 text-${color}-400"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold">${specName}</h3>
+                <p class="text-xs text-slate-400">${specDoctors.length} doctores asignados</p>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <h4 class="text-sm font-semibold mb-3 border-b border-white/10 pb-2">Doctores Actuales</h4>
+            <div class="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                ${specDoctors.length === 0 ? '<p class="text-xs text-slate-500">No hay doctores en esta área.</p>' :
+                specDoctors.map(d => `
+                    <div class="flex items-center justify-between bg-white/5 p-2.5 rounded-xl border border-white/5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-${color}-400/20 flex items-center justify-center text-xs font-bold text-${color}-400">${d.name.charAt(0)}</div>
+                            <span class="text-sm font-medium">${d.name}</span>
+                        </div>
+                        ${currentUser.role === 'admin' ? `<button onclick="window.removeDoctorFromSpecialty('${d.__backendId}')" class="text-red-400 hover:text-red-300 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        ${currentUser.role === 'admin' ? `
+        <div class="pt-4 border-t border-white/10">
+            <label class="block text-xs font-medium text-slate-400 mb-2">Asignar doctor a esta especialidad</label>
+            <div class="flex gap-2">
+                <select id="assign-doctor-select" class="flex-1 px-3 py-2 rounded-xl text-sm">
+                    <option value="">Seleccionar doctor...</option>
+                    ${otherDoctors.map(d => `<option value="${d.__backendId}">${d.name} (${d.specialty || 'Sin especialidad'})</option>`).join('')}
+                </select>
+                <button onclick="window.assignDoctorToSpecialty('${specName}')" class="bg-${color}-500 hover:bg-${color}-400 transition-colors px-4 py-2 rounded-xl text-sm text-white font-semibold">Añadir</button>
+            </div>
+        </div>
+        ` : ''}
+    </div>
+    `);
+}
+
+window.removeDoctorFromSpecialty = function(doctorId) {
+    window.updateFirestoreRecord('users', doctorId, { specialty: '' });
+    window.closeModal();
+    window.showToast('Doctor removido de la especialidad');
+}
+
+window.assignDoctorToSpecialty = function(specName) {
+    const doctorId = document.getElementById('assign-doctor-select').value;
+    if (!doctorId) return window.showToast('Selecciona un doctor', 'error');
+    window.updateFirestoreRecord('users', doctorId, { specialty: specName });
+    window.closeModal();
+    window.showToast(`Doctor asignado a ${specName}`);
+}
+// Modal para administrar los doctores de una especialidad
+window.manageSpecialty = function(specName, icon, color) {
+    const allDoctors = getDataByType('user').filter(u => u.role === 'doctor');
+    const specDoctors = allDoctors.filter(d => d.specialty === specName);
+    const otherDoctors = allDoctors.filter(d => d.specialty !== specName);
+
+    window.openModal(`
+    <div class="p-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-xl bg-${color}-400/10 flex items-center justify-center border border-${color}-400/20">
+                <i data-lucide="${icon}" class="w-6 h-6 text-${color}-400"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold">${specName}</h3>
+                <p class="text-xs text-slate-400">${specDoctors.length} doctores asignados</p>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <h4 class="text-sm font-semibold mb-3 border-b border-white/10 pb-2">Doctores Actuales</h4>
+            <div class="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                ${specDoctors.length === 0 ? '<p class="text-xs text-slate-500">No hay doctores en esta área.</p>' :
+                specDoctors.map(d => `
+                    <div class="flex items-center justify-between bg-white/5 p-2.5 rounded-xl border border-white/5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-${color}-400/20 flex items-center justify-center text-xs font-bold text-${color}-400">${d.name.charAt(0)}</div>
+                            <span class="text-sm font-medium">${d.name}</span>
+                        </div>
+                        ${currentUser.role === 'admin' ? `<button onclick="window.removeDoctorFromSpecialty('${d.__backendId}')" class="text-red-400 hover:text-red-300 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        ${currentUser.role === 'admin' ? `
+        <div class="pt-4 border-t border-white/10">
+            <label class="block text-xs font-medium text-slate-400 mb-2">Asignar doctor a esta especialidad</label>
+            <div class="flex gap-2">
+                <select id="assign-doctor-select" class="flex-1 px-3 py-2 rounded-xl text-sm">
+                    <option value="">Seleccionar doctor...</option>
+                    ${otherDoctors.map(d => `<option value="${d.__backendId}">${d.name} (${d.specialty || 'Sin especialidad'})</option>`).join('')}
+                </select>
+                <button onclick="window.assignDoctorToSpecialty('${specName}')" class="bg-${color}-500 hover:bg-${color}-400 transition-colors px-4 py-2 rounded-xl text-sm text-white font-semibold">Añadir</button>
+            </div>
+        </div>
+        ` : ''}
+    </div>
+    `);
+}
+
+window.removeDoctorFromSpecialty = function(doctorId) {
+    window.updateFirestoreRecord('users', doctorId, { specialty: '' });
+    window.closeModal();
+    window.showToast('Doctor removido de la especialidad');
+}
+
+window.assignDoctorToSpecialty = function(specName) {
+    const doctorId = document.getElementById('assign-doctor-select').value;
+    if (!doctorId) return window.showToast('Selecciona un doctor', 'error');
+    window.updateFirestoreRecord('users', doctorId, { specialty: specName });
+    window.closeModal();
+    window.showToast(`Doctor asignado a ${specName}`);
+}
+function renderReports(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Módulo de reportes en construcción.</div>`; }
+function renderSettings(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Configuraciones locales guardadas con éxito.</div>`; }
+function renderPatients(el) {
+    // 1. Obtener TODAS las citas de la base de datos
+    const allAppts = getDataByType('appointment');
+
+    // 2. Extraer los nombres de todos los pacientes que han registrado al menos una cita
+    const patientIdsWithAppts = [...new Set(allAppts.map(a => a.patient_id))];
+
+    // 3. Cruzar con la tabla de usuarios para traer sus datos (teléfono, sangre, etc.)
+    const allUsers = getDataByType('user');
+    const myPatients = patientIdsWithAppts.map(pid => {
+        const userProfile = allUsers.find(u => u.role === 'patient' && (u.name === pid || u.username === pid));
+        // Traemos todas las citas de este paciente, ordenadas por la más reciente
+        const patientAppts = allAppts.filter(a => a.patient_id === pid).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        return {
+            name: userProfile ? (userProfile.name || pid) : pid,
+            email: userProfile ? userProfile.email : 'Sin correo registrado',
+            phone: userProfile ? userProfile.phone : 'N/A',
+            gender: userProfile ? userProfile.gender : '-',
+            blood: userProfile ? userProfile.blood_type : '-',
+            totalAppts: patientAppts.length,
+            lastApptDate: patientAppts[0] ? patientAppts[0].date : null
+        };
+    });
+
+    // 4. Renderizar las tarjetas
+    el.innerHTML = `
+    <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-emerald-400/10 flex items-center justify-center">
+            <i data-lucide="users" class="w-5 h-5 text-emerald-400"></i>
+        </div>
+        <h3 class="text-lg font-bold text-med-text">Pacientes con Citas Registradas</h3>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 fade-in">
+        ${myPatients.length === 0 ? '<p class="text-slate-500 text-sm col-span-3 text-center py-8">Aún no hay pacientes con citas registradas en el sistema.</p>' :
+        myPatients.map(p => `
+        <div class="glass rounded-2xl p-5 glow-sm hover:scale-[1.02] transition-all group border border-white/5">
+            <div class="flex items-center gap-4 mb-4 border-b border-white/5 pb-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-white text-lg font-bold shadow-lg flex-shrink-0">
+                    ${p.name.charAt(0).toUpperCase()}
+                </div>
+                <div class="min-w-0">
+                    <p class="font-bold text-sm text-med-text truncate">${p.name}</p>
+                    <p class="text-xs text-slate-400 truncate">${p.email}</p>
+                </div>
+            </div>
+            <div class="space-y-2 text-xs text-slate-300">
+                <div class="flex justify-between"><span class="text-slate-500">Teléfono:</span> <span>${p.phone}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Sexo/Sangre:</span> <span>${p.gender === 'M' ? 'Masc.' : p.gender === 'F' ? 'Fem.' : p.gender} / ${p.blood}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Citas totales:</span> <span>${p.totalAppts}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Última cita:</span> <span>${p.lastApptDate ? formatDate(p.lastApptDate) : 'N/A'}</span></div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-white/5 flex gap-2">
+                <button onclick="window.openChatWith('${p.name}'); window.navigateTo('chat');" class="flex-1 py-2 rounded-lg bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 transition-all text-xs font-semibold flex items-center justify-center gap-1">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i> Chat
+                </button>
+                <button onclick="window.navigateTo('records');" class="flex-1 py-2 rounded-lg bg-indigo-400/10 text-indigo-400 hover:bg-indigo-400/20 transition-all text-xs font-semibold flex items-center justify-center gap-1">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> Historial
+                </button>
+            </div>
+        </div>
+        `).join('')}
+    </div>`;
+}
+function renderRecords(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Módulo de historial en construcción.</div>`; }
+function renderBookAppointment(el) {
+    el.innerHTML = `
+    <div class="glass rounded-2xl p-8 text-center max-w-lg mx-auto mt-10 fade-in glow-sm">
+        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-cyan-500/30">
+            <i data-lucide="calendar-plus" class="w-10 h-10 text-white"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-med-text mb-2">Agendar Nueva Cita</h2>
+        <p class="text-sm text-slate-400 mb-8">Selecciona la especialidad que necesitas y el sistema te mostrará los médicos disponibles para atenderte.</p>
+        <button onclick="window.openNewAppointmentModal()" class="btn-primary text-white font-bold py-3 px-8 rounded-xl text-sm shadow-lg shadow-cyan-500/20">
+            Comenzar Reservación
+        </button>
+    </div>
+    `;
+}
+function renderMyAppointments(el) { renderAppointments(el); }
+function renderMyRecords(el) { renderRecords(el); }
+function renderMyPrescriptions(el) { renderPrescriptions(el); }
+
+
+
+// ========== REGISTRO PÚBLICO DE PACIENTES ==========
+
+window.openPatientRegisterModal = function() {
+    window.openModal(`
+    <div class="p-6">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-emerald-400/10 flex items-center justify-center">
+                <i data-lucide="user-plus" class="w-5 h-5 text-emerald-400"></i>
+            </div>
+            <h3 class="text-lg font-bold">Registro de Paciente</h3>
+        </div>
+        
+        <form id="patient-register-form" onsubmit="return false;" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Nombre Completo</label>
+                <input id="pr-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Ana Martínez" required>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico</label>
+                <input id="pr-email" type="email" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="tu@correo.com" required>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Contraseña</label>
+                <input id="pr-password" type="password" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Mínimo 6 caracteres" required>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono</label>
+                <input id="pr-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="10 dígitos">
+            </div>
+            
+            <div class="pt-4 border-t border-white/10 mt-6">
+                <button onclick="window.registerPatient()" class="w-full text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-500/20" style="background: linear-gradient(135deg, #10B981, #059669);">
+                    Crear mi cuenta
+                </button>
+            </div>
+        </form>
+    </div>
+    `);
+}
+
+window.registerPatient = async function() {
+    const name = document.getElementById('pr-name').value.trim();
+    const email = document.getElementById('pr-email').value.trim();
+    const password = document.getElementById('pr-password').value;
+    const phone = document.getElementById('pr-phone').value.trim();
+    
+    if (!name || !email || !password) {
+        return window.showToast('Nombre, correo y contraseña son obligatorios', 'error');
+    }
+
+    try {
+        // 1. Crear el usuario en Firebase Authentication (Como nadie ha iniciado sesión, usamos la instancia principal de auth)
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        
+        // 2. Preparamos los datos del paciente
+        const userData = {
+            role: 'patient', // FORZAMOS EL ROL A PACIENTE
+            name: name,
+            email: email,
+            password: password, 
+            username: email.split('@')[0], 
+            phone: phone,
+            created_at: new Date().toISOString()
+        };
+
+        // 3. Guardamos el perfil en Firestore
+        await setDoc(doc(db, 'users', userCred.user.uid), userData);
+        
+        window.showToast('Cuenta creada exitosamente', 'success');
+        window.closeModal();
+        
+        // 4. Autocompletamos el login e iniciamos sesión automáticamente
+        document.getElementById('login-user').value = email;
+        document.getElementById('login-pass').value = password;
+        window.handleLogin();
+
+    } catch(error) {
+        if(error.code === 'auth/email-already-in-use') {
+            window.showToast('Este correo ya está registrado', 'error');
+        } else if (error.code === 'auth/weak-password') {
+            window.showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+        } else {
+            window.showToast('Error: ' + error.message, 'error');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+    </script>
+</body>
+</html>

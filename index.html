@@ -360,6 +360,22 @@ window.closeModal = function() {
     document.getElementById('modal-container').classList.add('hidden'); 
 }
 
+window.toggleSidebar = function() {
+    sidebarOpen = !sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('-translate-x-full', !sidebarOpen);
+    
+    // Mostrar u ocultar el fondo oscuro en versión móvil
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (backdrop) {
+        if (sidebarOpen) {
+            backdrop.classList.remove('hidden');
+        } else {
+            backdrop.classList.add('hidden');
+        }
+    }
+};
+
+
 // Funciones globales para manejar el "Arrastrar y Soltar" en el calendario
 window.currentDropInfo = null;
 

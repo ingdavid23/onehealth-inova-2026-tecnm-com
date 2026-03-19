@@ -190,10 +190,15 @@
                         <label class="block text-xs font-medium text-slate-400 mb-1.5">Contraseña</label>
                         <div class="relative">
                             <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i> 
-                            <input id="login-pass" type="password" placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm">
+                            
+                            <input id="login-pass" type="password" placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm">
+                            
+                            <button type="button" onclick="window.togglePasswordVisibility('login-pass', 'login-eye-icon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors p-1">
+                                <i id="login-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
                         </div>
                         <div class="text-right mt-2">
-                            <button onclick="window.handleForgotPassword()" class="text-[11px] font-medium text-med-primary hover:text-med-secondary transition-colors">
+                            <button onclick="window.handleForgotPassword()" type="button" class="text-[11px] font-medium text-med-primary hover:text-med-secondary transition-colors">
                                 ¿Olvidaste tu contraseña?
                             </button>
                         </div>
@@ -346,11 +351,37 @@ window.openModal = function(html) {
     document.getElementById('modal-container').classList.remove('hidden');
     lucide.createIcons({ nodes: [modalContent] });
 }
-window.closeModal = function() { document.getElementById('modal-container').classList.add('hidden'); }
-window.toggleSidebar = function() {
-    sidebarOpen = !sidebarOpen;
-    document.getElementById('sidebar').classList.toggle('-translate-x-full', !sidebarOpen);
+window.closeModal = function() { 
+    // Si estábamos a la mitad de arrastrar una cita en el calendario y cerramos, cancelamos el movimiento
+    if (window.currentDropInfo) {
+        window.currentDropInfo.revert();
+        window.currentDropInfo = null;
+    }
+    document.getElementById('modal-container').classList.add('hidden'); 
 }
+
+// Funciones globales para manejar el "Arrastrar y Soltar" en el calendario
+window.currentDropInfo = null;
+
+window.confirmEventDrop = function() {
+    if (!window.currentDropInfo) return;
+    const info = window.currentDropInfo;
+    const newDate = info.event.start.toISOString().split('T')[0];
+    const newTime = info.event.start.toTimeString().slice(0, 5);
+    
+    window.updateFirestoreRecord('appointments', info.event.id, { 
+        date: newDate, 
+        time: newTime, 
+        status: 'pending' 
+    });
+    
+    window.currentDropInfo = null; // Limpiamos la variable
+    window.closeModal();
+};
+
+window.cancelEventDrop = function() {
+    window.closeModal(); // La nueva lógica de closeModal ya hace el info.revert() automáticamente
+};
 window.toggleTheme = function() {
     isDark = !isDark;
     document.documentElement.style.setProperty('--color-bg', isDark ? '#0B1120' : '#F1F5F9');
@@ -468,6 +499,23 @@ window.handleForgotPassword = async function() {
             window.showToast('Error al enviar el correo: ' + error.message, 'error');
         }
     }
+};
+
+// ========== MOSTRAR / OCULTAR CONTRASEÑA ==========
+window.togglePasswordVisibility = function(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    
+    if (input.type === 'password') {
+        input.type = 'text'; // Mostramos el texto
+        icon.setAttribute('data-lucide', 'eye-off'); // Cambiamos al ojito tachado
+    } else {
+        input.type = 'password'; // Ocultamos el texto
+        icon.setAttribute('data-lucide', 'eye'); // Cambiamos al ojito normal
+    }
+    
+    // Forzamos a Lucide a redibujar el ícono nuevo
+    lucide.createIcons({ nodes: [icon.parentElement] });
 };
 
 window.handleLogout = async function() {
@@ -1392,26 +1440,91 @@ let html = `
                                </div>`
                     };
                 },
+                // ... (código anterior del calendario se queda igual: locale, headerToolbar, events, etc.)
                 editable: currentUser.role !== 'patient', 
+                
+                // === NUEVO EVENTO: Al soltar la cita al arrastrarla ===
                 eventDrop: function(info) {
-                    if (confirm(`¿Reprogramar esta cita para el ${info.event.start.toLocaleDateString()} a las ${info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}?`)) {
-                        const newDate = info.event.start.toISOString().split('T')[0];
-                        const newTime = info.event.start.toTimeString().slice(0, 5);
-                        window.updateFirestoreRecord('appointments', info.event.id, { date: newDate, time: newTime, status: 'pending' });
-                        window.showToast('Cita reprogramada.', 'success');
-                    } else { info.revert(); }
+                    const dateStr = info.event.start.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const timeStr = info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    // Guardamos la información temporalmente para los botones del modal
+                    window.currentDropInfo = info;
+
+                    // Abrimos tu modal del sistema en lugar del confirm() feo
+                    window.openModal(`
+                        <div class="p-6 text-center">
+                            <div class="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                                <i data-lucide="calendar-clock" class="w-8 h-8 text-amber-500"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2 text-med-text">¿Reprogramar Cita?</h3>
+                            <p class="text-sm text-slate-400 mb-6">Estás a punto de mover esta cita para el <strong class="text-white">${dateStr}</strong> a las <strong class="text-white">${timeStr}</strong>.</p>
+                            
+                            <div class="flex gap-3 justify-center">
+                                <button onclick="window.cancelEventDrop()" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 transition-all text-slate-300">Cancelar</button>
+                                <button onclick="window.confirmEventDrop()" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/20">Sí, Reprogramar</button>
+                            </div>
+                        </div>
+                    `);
                 },
+
+                // === NUEVO EVENTO: Al hacer clic para ver los detalles ===
                 eventClick: function(info) {
                     const props = info.event.extendedProps;
-                    const dateStr = info.event.start.toLocaleDateString();
+                    const dateStr = info.event.start.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
                     const timeStr = info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    let actionButton = '';
+                    
+                    // Si el doctor hace clic y la cita está pendiente, le ofrecemos el botón de confirmar en el mismo modal
                     if (currentUser.role !== 'patient' && props.status === 'pending') {
-                        if(confirm(`Detalles de la cita:\n\nPaciente: ${props.patient_id}\nHora: ${dateStr} - ${timeStr}\n\n¿Deseas CONFIRMAR esta cita?`)) {
-                            window.updateFirestoreRecord('appointments', info.event.id, { status: 'confirmed' });
-                        }
-                    } else {
-                        alert(`Detalles de la Cita:\n\nPaciente: ${props.patient_id}\nDoctor: ${props.doctor_id}\nFecha: ${dateStr}\nHora: ${timeStr}\nEstado: ${props.status.toUpperCase()}`);
+                        actionButton = `
+                        <div class="mt-6 pt-4 border-t border-white/10">
+                            <button onclick="window.updateFirestoreRecord('appointments', '${info.event.id}', { status: 'confirmed' }); window.closeModal();" class="w-full btn-primary text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
+                                <i data-lucide="check-circle" class="w-5 h-5"></i> Confirmar Cita
+                            </button>
+                        </div>`;
                     }
+
+                    // Abrimos tu modal del sistema en lugar del alert() feo
+                    window.openModal(`
+                        <div class="p-6">
+                            <div class="flex items-center gap-4 mb-6 border-b border-white/10 pb-4">
+                                <div class="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30">
+                                    <i data-lucide="calendar" class="w-6 h-6 text-cyan-400"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-med-text">Detalles de la Cita</h3>
+                                    <span class="status-${props.status} text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full font-bold mt-1 inline-block">${props.status}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4 text-sm text-slate-300">
+                                <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <span class="text-slate-500 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4"></i> Paciente:</span> 
+                                    <span class="font-bold text-white">${props.patient_id}</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <span class="text-slate-500 flex items-center gap-2"><i data-lucide="stethoscope" class="w-4 h-4"></i> Doctor:</span> 
+                                    <span class="font-bold text-white">${props.doctor_id}</span>
+                                </div>
+                                <div class="flex items-center justify-between px-3">
+                                    <span class="text-slate-500">Especialidad:</span> 
+                                    <span class="font-medium text-white">${props.specialty || 'General'}</span>
+                                </div>
+                                <div class="flex items-center justify-between px-3">
+                                    <span class="text-slate-500">Fecha programada:</span> 
+                                    <span class="font-medium text-white capitalize">${dateStr}</span>
+                                </div>
+                                <div class="flex items-center justify-between px-3">
+                                    <span class="text-slate-500">Hora:</span> 
+                                    <span class="font-medium text-white">${timeStr}</span>
+                                </div>
+                            </div>
+                            
+                            ${actionButton}
+                        </div>
+                    `);
                 }
             });
             calendar.render();

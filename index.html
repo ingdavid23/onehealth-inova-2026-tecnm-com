@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediConnect Pro</title>
+    <title>OneHealth</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -175,8 +175,8 @@
                     <div class="w-16 h-16 rounded-2xl btn-primary flex items-center justify-center mx-auto mb-4">
                         <i data-lucide="heart-pulse" class="w-8 h-8 text-white"></i>
                     </div>
-                    <h1 id="login-title" class="text-2xl font-bold text-med-text">MediConnect Pro</h1>
-                    <p id="login-subtitle" class="text-sm text-slate-400 mt-1">Tu plataforma de salud integral</p>
+                    <h1 id="login-title" class="text-2xl font-bold text-med-text">OneHealth</h1>
+                    <p id="login-subtitle" class="text-sm text-slate-400 mt-1">Tu plataforma de salud integral inteligente</p>
                 </div>
                 <div class="space-y-4">
                     <div>
@@ -224,7 +224,7 @@
                                 <i data-lucide="heart-pulse" class="w-5 h-5 text-white"></i>
                             </div>
                             <div>
-                                <h2 id="sidebar-title" class="font-bold text-sm text-med-text">MediConnect Pro</h2>
+                                <h2 id="sidebar-title" class="font-bold text-sm text-med-text">OneHealth</h2>
                                 <p id="sidebar-role" class="text-xs text-slate-400"></p>
                             </div>
                         </div>
@@ -717,61 +717,40 @@ function renderAdminDashboard(el) {
     </div>`;
 }
 function renderDoctorDashboard(el) {
-    // 1. Filtro flexible para atrapar las citas viejas (corruptas) y las nuevas correctas
-    const allAppts = getDataByType('appointment');
-    let myAppts = allAppts.filter(a => 
-        a.doctor_id === currentUser.username || 
-        a.doctor_id === currentUser.name ||
-        a.doctor_id === 'doc1'
-    );
+    const myName = String(currentUser.name || "").toLowerCase().trim();
+    const myUsername = String(currentUser.username || "").toLowerCase().trim();
 
-    // PARCHE DE SEGURIDAD: Si el filtro estricto da 0, mostramos TODAS las citas 
-    // para que tu dashboard nunca esté vacío durante tus pruebas.
-    if (myAppts.length === 0 && allAppts.length > 0) {
-        myAppts = allAppts; 
-    }
+    // 1. Filtro estricto: SOLO citas de este doctor
+    const allAppts = getDataByType('appointment');
+    const myAppts = allAppts.filter(a => {
+        const dId = String(a.doctor_id || "").toLowerCase().trim();
+        return dId === myName || dId === myUsername;
+    });
 
     const today = new Date().toISOString().split('T')[0];
-    
-    // 2. Clasificar las citas
     const todayAppts = myAppts.filter(a => a.date === today);
-    
-    // Ordenamos las pendientes (las más antiguas primero)
     const pending = myAppts.filter(a => a.status === 'pending').sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    // Mostramos TODAS las confirmadas, sin importar si son de fechas pasadas, para que no se oculten
     const confirmed = myAppts.filter(a => a.status === 'confirmed').sort((a, b) => new Date(b.date) - new Date(a.date));
     
-    // 3. Obtener pacientes únicos y recetas emitidas
     const uniquePatientsCount = new Set(myAppts.map(a => a.patient_id)).size;
     
-    // Filtro flexible para recetas también
-    let myPrescriptions = getDataByType('prescription').filter(p => p.doctor_id === currentUser.username || p.doctor_id === currentUser.name);
-    if (myPrescriptions.length === 0) myPrescriptions = getDataByType('prescription');
+    // Filtro estricto para recetas
+    const myPrescriptions = getDataByType('prescription').filter(p => {
+        const pDocId = String(p.doctor_id || "").toLowerCase().trim();
+        return pDocId === myName || pDocId === myUsername;
+    });
 
     el.innerHTML = `
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div onclick="window.navigateTo('appointments')" class="cursor-pointer hover:scale-[1.03] transition-transform">
-            ${statCard('calendar-check', 'Citas Hoy', todayAppts.length, 'cyan')}
-        </div>
-        <div onclick="window.navigateTo('appointments')" class="cursor-pointer hover:scale-[1.03] transition-transform">
-            ${statCard('clock', 'Por Confirmar', pending.length, 'amber')}
-        </div>
-        <div onclick="window.navigateTo('patients')" class="cursor-pointer hover:scale-[1.03] transition-transform">
-            ${statCard('users', 'Mis Pacientes', uniquePatientsCount, 'emerald')}
-        </div>
-        <div onclick="window.navigateTo('prescriptions')" class="cursor-pointer hover:scale-[1.03] transition-transform">
-            ${statCard('pill', 'Recetas Emitidas', myPrescriptions.length, 'indigo')}
-        </div>
+        <div onclick="window.navigateTo('appointments')" class="cursor-pointer hover:scale-[1.03] transition-transform">${statCard('calendar-check', 'Citas Hoy', todayAppts.length, 'cyan')}</div>
+        <div onclick="window.navigateTo('appointments')" class="cursor-pointer hover:scale-[1.03] transition-transform">${statCard('clock', 'Por Confirmar', pending.length, 'amber')}</div>
+        <div onclick="window.navigateTo('patients')" class="cursor-pointer hover:scale-[1.03] transition-transform">${statCard('users', 'Mis Pacientes', uniquePatientsCount, 'emerald')}</div>
+        <div onclick="window.navigateTo('prescriptions')" class="cursor-pointer hover:scale-[1.03] transition-transform">${statCard('pill', 'Recetas Emitidas', myPrescriptions.length, 'indigo')}</div>
     </div>
 
     <div class="flex gap-3 mb-6">
-        <button onclick="window.openNewPrescriptionModal()" class="btn-primary text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/20">
-            <i data-lucide="pill" class="w-4 h-4"></i> Crear Receta
-        </button>
-        <button onclick="window.openNewNoteModal()" class="bg-white/5 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all border border-white/10">
-            <i data-lucide="pen-tool" class="w-4 h-4 text-cyan-400"></i> Nueva Nota
-        </button>
+        <button onclick="window.openNewPrescriptionModal()" class="btn-primary text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/20"><i data-lucide="pill" class="w-4 h-4"></i> Crear Receta</button>
+        <button onclick="window.openNewNoteModal()" class="bg-white/5 hover:bg-white/10 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all border border-white/10"><i data-lucide="pen-tool" class="w-4 h-4 text-cyan-400"></i> Nueva Nota</button>
     </div>
 
     <div class="grid lg:grid-cols-2 gap-6">
@@ -783,17 +762,13 @@ function renderDoctorDashboard(el) {
                 <div class="flex items-center justify-between p-4 rounded-xl bg-amber-400/5 border border-amber-400/10 hover:bg-amber-400/10 transition-colors">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-400 font-bold flex-shrink-0">${(a.patient_id || 'P').charAt(0).toUpperCase()}</div>
-                        <div class="min-w-0">
-                            <p class="font-medium text-sm truncate pr-2">${a.patient_id || 'Paciente'}</p>
-                            <p class="text-xs text-slate-400">${formatDate(a.date)} · ${a.time || '--:--'}</p>
-                        </div>
+                        <div class="min-w-0"><p class="font-medium text-sm truncate pr-2">${a.patient_id || 'Paciente'}</p><p class="text-xs text-slate-400">${formatDate(a.date)} · ${a.time || '--:--'}</p></div>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'confirmed'})" class="p-2 rounded-lg bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 transition-colors" title="Confirmar Cita"><i data-lucide="check" class="w-4 h-4"></i></button>
                         <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'cancelled'})" class="p-2 rounded-lg bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-colors" title="Cancelar"><i data-lucide="x" class="w-4 h-4"></i></button>
                     </div>
-                </div>
-                `).join('')}
+                </div>`).join('')}
             </div>
         </div>
 
@@ -805,17 +780,13 @@ function renderDoctorDashboard(el) {
                 <div class="flex items-center justify-between p-4 rounded-xl bg-cyan-400/5 border border-cyan-400/10 hover:bg-cyan-400/10 transition-colors">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-cyan-400/20 flex items-center justify-center text-cyan-400 font-bold flex-shrink-0">${(a.patient_id || 'P').charAt(0).toUpperCase()}</div>
-                        <div class="min-w-0">
-                            <p class="font-medium text-sm truncate pr-2">${a.patient_id || 'Paciente'}</p>
-                            <p class="text-xs ${a.date === today ? 'text-cyan-400 font-bold' : 'text-slate-400'}">${a.date === today ? 'HOY' : formatDate(a.date)} · ${a.time || '--:--'}</p>
-                        </div>
+                        <div class="min-w-0"><p class="font-medium text-sm truncate pr-2">${a.patient_id || 'Paciente'}</p><p class="text-xs ${a.date === today ? 'text-cyan-400 font-bold' : 'text-slate-400'}">${a.date === today ? 'HOY' : formatDate(a.date)} · ${a.time || '--:--'}</p></div>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="window.openChatWith('${a.patient_id}'); window.navigateTo('chat');" class="p-2 rounded-lg bg-white/5 text-slate-300 hover:bg-white/10 transition-colors" title="Mensaje al paciente"><i data-lucide="message-circle" class="w-4 h-4"></i></button>
                         <button onclick="window.updateFirestoreRecord('appointments', '${a.__backendId}', {status: 'completed'})" class="p-2 rounded-lg bg-indigo-400/10 text-indigo-400 hover:bg-indigo-400/20 transition-colors" title="Marcar como Completada"><i data-lucide="check-circle" class="w-4 h-4"></i></button>
                     </div>
-                </div>
-                `).join('')}
+                </div>`).join('')}
             </div>
         </div>
     </div>`;
@@ -825,7 +796,7 @@ function renderPatientDashboard(el) {
     const myName = String(currentUser.name || "").toLowerCase().trim();
     const myUsername = String(currentUser.username || "").toLowerCase().trim();
 
-    // 1. Filtrar Citas: Buscamos coincidencias en patient_id
+    // 1. Filtrar Citas
     const appts = getDataByType('appointment').filter(a => {
         const pId = String(a.patient_id || "").toLowerCase().trim();
         return pId === myName || pId === myUsername;
@@ -837,11 +808,16 @@ function renderPatientDashboard(el) {
         return pId === myName || pId === myUsername;
     });
 
-    // 3. Encontrar la próxima cita (la más cercana a hoy que esté confirmada o pendiente)
+    // 3. Encontrar la próxima cita
     const todayStr = new Date().toISOString().split('T')[0];
     const next = appts
         .filter(a => (a.status === 'confirmed' || a.status === 'pending') && a.date >= todayStr)
         .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+
+    // === NUEVO: LÓGICA DEL PASTILLERO VIRTUAL ===
+    // Obtenemos la receta más reciente para armar el pastillero de hoy
+    const latestRx = rx.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    const activeMeds = latestRx && latestRx.medications ? latestRx.medications : [];
     
     el.innerHTML = `
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -850,8 +826,9 @@ function renderPatientDashboard(el) {
         ${statCard('heart-pulse', 'Salud', '✓', 'emerald')}
         ${statCard('star', 'Calificaciones', appts.filter(a => a.rating).length, 'amber')}
     </div>
+    
     <div class="grid lg:grid-cols-2 gap-6">
-        <div class="glass rounded-2xl p-5 fade-in">
+        <div class="glass rounded-2xl p-5 fade-in h-fit border border-white/5">
             <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="calendar-check" class="w-4 h-4 text-cyan-400"></i> Próxima Cita</h3>
             ${next ? `
             <div class="p-4 rounded-xl bg-emerald-400/5 border border-emerald-400/20">
@@ -862,34 +839,131 @@ function renderPatientDashboard(el) {
                         <p class="text-xs text-slate-500">${next.specialty || 'Consulta Médica'}</p>
                     </div>
                 </div>
-                <div class="flex gap-4 text-sm pt-2 border-t border-black/5">
-                    <span class="flex items-center gap-1.5 font-medium"><i data-lucide="calendar" class="w-3.5 h-3.5 text-med-primary"></i>${formatDate(next.date)}</span>
-                    <span class="flex items-center gap-1.5 font-medium"><i data-lucide="clock" class="w-3.5 h-3.5 text-med-primary"></i>${next.time || '--:--'}</span>
+                <div class="flex gap-4 text-sm pt-2 border-t border-white/5">
+                    <span class="flex items-center gap-1.5 font-medium text-slate-300"><i data-lucide="calendar" class="w-3.5 h-3.5 text-med-primary"></i>${formatDate(next.date)}</span>
+                    <span class="flex items-center gap-1.5 font-medium text-slate-300"><i data-lucide="clock" class="w-3.5 h-3.5 text-med-primary"></i>${next.time || '--:--'}</span>
                 </div>
             </div>
             ` : `
-            <div class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <div class="text-center py-6 bg-white/5 rounded-2xl border border-dashed border-white/10">
                 <p class="text-slate-500 text-sm mb-3">No tienes citas próximas programadas.</p>
-                <button onclick="window.navigateTo('book')" class="text-xs font-bold text-med-primary hover:underline">Agendar una cita ahora</button>
+                <button onclick="window.navigateTo('book')" class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors">Agendar una cita ahora</button>
             </div>
             `}
         </div>
-        <div class="glass rounded-2xl p-5 fade-in">
-            <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i> Recomendaciones Diarias</h3>
-            <div class="space-y-3">
-                <div class="flex items-center gap-3 p-3 rounded-xl bg-emerald-400/5 border border-emerald-400/10">
-                    <i data-lucide="droplets" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
-                    <p class="text-sm text-slate-700">Mantente hidratado: Bebe al menos 8 vasos de agua.</p>
+
+        <div class="space-y-6">
+            
+            <div class="glass rounded-2xl p-5 fade-in border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)]">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="check-square" class="w-4 h-4 text-indigo-400"></i> Medicamentos de Hoy</h3>
+                    <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-lg font-medium">${activeMeds.length} programados</span>
                 </div>
-                <div class="flex items-center gap-3 p-3 rounded-xl bg-cyan-400/5 border border-cyan-400/10">
-                    <i data-lucide="footprints" class="w-5 h-5 text-med-primary flex-shrink-0"></i>
-                    <p class="text-sm text-slate-700">Actividad física: Realiza una caminata de 20 minutos.</p>
+                
+                <div class="space-y-3">
+                    ${activeMeds.length === 0 ? `
+                        <div class="text-center py-6 bg-white/5 rounded-xl border border-dashed border-white/10">
+                            <i data-lucide="check-circle" class="w-8 h-8 text-slate-600 mx-auto mb-2"></i>
+                            <p class="text-slate-400 text-sm">No tienes tratamientos médicos activos.</p>
+                        </div>
+                    ` : 
+                    activeMeds.map((med, idx) => {
+                        // === NUEVA LÓGICA DE MEMORIA ===
+                        // 1. Revisamos si el paciente ya marcó este medicamento hoy
+                        const todayKey = new Date().toISOString().split('T')[0];
+                        const savedMeds = JSON.parse(localStorage.getItem(`meds_${currentUser.username}_${todayKey}`) || '[]');
+                        const isTaken = savedMeds.includes(med.name);
+                        
+                        // 2. Asignamos las clases dependiendo si ya se lo tomó o no
+                        const iconState = isTaken ? 'text-indigo-400' : 'text-transparent';
+                        const boxState = isTaken ? 'border-indigo-400 bg-indigo-400/20' : 'border-slate-500';
+                        const textState = isTaken ? 'line-through text-slate-400' : 'text-white font-bold';
+                        
+                        return `
+                        <div onclick="window.toggleMedication(this, '${med.name}')" class="flex items-center justify-between p-3.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all cursor-pointer group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded border-2 ${boxState} flex items-center justify-center group-hover:border-indigo-400 transition-colors check-box">
+                                    <i data-lucide="check" class="w-4 h-4 ${iconState} transition-colors"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm ${textState} med-name-text transition-all">${med.name}</p>
+                                    <p class="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                        <i data-lucide="clock" class="w-3 h-3"></i> ${med.frequency}
+                                        ${med.instruction ? `· ${med.instruction}` : ''}
+                                    </p>
+                                </div>
+                            </div>
+                            <i data-lucide="pill" class="w-5 h-5 text-slate-500 group-hover:text-indigo-400 transition-colors"></i>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+
+            <div class="glass rounded-2xl p-5 fade-in border border-white/5">
+                <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i> Hábitos Saludables</h3>
+                <div class="space-y-3">
+                    <div class="p-3 rounded-xl bg-emerald-400/5 border border-emerald-400/10 flex items-start gap-3">
+                        <i data-lucide="droplets" class="w-5 h-5 text-emerald-400 mt-0.5"></i>
+                        <div><p class="text-xs font-bold text-emerald-400 mb-0.5">Hidratación</p><p class="text-[11px] text-slate-300">Recuerda beber al menos 2 litros de agua hoy.</p></div>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>`;
+    
+    // Necesitamos redibujar los íconos de lucide cada que actualizamos el innerHTML
+    lucide.createIcons({ nodes: [el] });
 }
 
+// ========== LÓGICA DEL PASTILLERO VIRTUAL (CON MEMORIA) ==========
+window.toggleMedication = function(element, medName) {
+    const checkIcon = element.querySelector('.check-box svg'); 
+    const checkContainer = element.querySelector('.check-box');
+    const textElement = element.querySelector('.med-name-text');
+    
+    if (!checkIcon) return; 
+
+    // Preparamos la clave de memoria para el día de hoy
+    const todayKey = new Date().toISOString().split('T')[0];
+    const storageKey = `meds_${currentUser.username}_${todayKey}`;
+    let savedMeds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+    if (checkIcon.classList.contains('text-transparent')) {
+        // === ACCIÓN: MARCAR COMO TOMADO ===
+        checkIcon.classList.remove('text-transparent');
+        checkIcon.classList.add('text-indigo-400');
+        
+        checkContainer.classList.add('border-indigo-400', 'bg-indigo-400/20');
+        checkContainer.classList.remove('border-slate-500');
+        
+        textElement.classList.add('line-through', 'text-slate-400');
+        textElement.classList.remove('text-white', 'font-bold');
+        
+        // Guardamos en memoria
+        if (!savedMeds.includes(medName)) {
+            savedMeds.push(medName);
+            localStorage.setItem(storageKey, JSON.stringify(savedMeds));
+        }
+        
+        window.showToast(`¡Excelente! Registraste tu dosis de ${medName}`, 'success');
+        
+    } else {
+        // === ACCIÓN: DESMARCAR ===
+        checkIcon.classList.add('text-transparent');
+        checkIcon.classList.remove('text-indigo-400');
+        
+        checkContainer.classList.remove('border-indigo-400', 'bg-indigo-400/20');
+        checkContainer.classList.add('border-slate-500');
+        
+        textElement.classList.remove('line-through', 'text-slate-400');
+        textElement.classList.add('text-white', 'font-bold');
+        
+        // Borramos de la memoria
+        savedMeds = savedMeds.filter(m => m !== medName);
+        localStorage.setItem(storageKey, JSON.stringify(savedMeds));
+    }
+};
 // ========== 2. NOTAS MÉDICAS (DOCTOR) ==========
 function renderNotes(el) {
     const notes = getDataByType('note').filter(n => n.doctor_id === currentUser.username);
@@ -1342,7 +1416,8 @@ function renderAppointments(el) {
     } else if (currentUser.role === 'doctor') {
         appts = appts.filter(a => {
             const dId = String(a.doctor_id || "").toLowerCase().trim();
-            return dId === myName || dId === myUsername || dId === 'doc1';
+            // ¡Adiós al 'doc1' y filtros globales!
+            return dId === myName || dId === myUsername; 
         });
     }
 
@@ -1624,6 +1699,7 @@ window.openNewAppointmentModal = function() {
 }
 
 // Función mágica que filtra los doctores
+// Función mágica que filtra los doctores (A PRUEBA DE ERRORES TIPOGRÁFICOS)
 window.filterDoctorsBySpecialty = function() {
     const specialty = document.getElementById('appt-specialty').value;
     const doctorSelect = document.getElementById('appt-doctor');
@@ -1635,8 +1711,18 @@ window.filterDoctorsBySpecialty = function() {
         return;
     }
 
-    // Buscamos doctores que tengan la especialidad seleccionada
-    const availableDoctors = getDataByType('user').filter(u => u.role === 'doctor' && u.specialty === specialty);
+    // Pequeña función para limpiar textos (quita mayúsculas, acentos y espacios extra)
+    const cleanText = (text) => {
+        if (!text) return "";
+        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    };
+
+    const targetSpecialty = cleanText(specialty);
+
+    // Buscamos doctores que tengan la especialidad seleccionada (ignorando acentos y mayúsculas)
+    const availableDoctors = getDataByType('user').filter(u => {
+        return u.role === 'doctor' && cleanText(u.specialty) === targetSpecialty;
+    });
     
     if (availableDoctors.length === 0) {
         doctorSelect.innerHTML = '<option value="">No hay doctores en esta área aún</option>';
@@ -1701,10 +1787,33 @@ function renderChat(el) {
     if (!window.currentChatPartner) {
         let contactsMap = new Map();
 
-        // A) Cargar contactos sugeridos según el rol opuesto
-        const oppositeRole = isDoctor ? 'patient' : 'doctor';
-        const availableContacts = allUsers.filter(u => u.role === oppositeRole);
+        // A) Cargar contactos sugeridos de forma estricta
+        let availableContacts = [];
         
+        if (isDoctor) {
+            // Doctores solo ven a SUS propios pacientes confirmados/pendientes
+            const myAppts = getDataByType('appointment').filter(a => {
+                const dId = String(a.doctor_id || "").toLowerCase().trim();
+                return dId === myName || dId === myUsername;
+            });
+            const myPatientNames = [...new Set(myAppts.map(a => String(a.patient_id).toLowerCase().trim()))];
+            
+            availableContacts = allUsers.filter(u => 
+                u.role === 'patient' && (myPatientNames.includes(String(u.name).toLowerCase().trim()) || myPatientNames.includes(String(u.username).toLowerCase().trim()))
+            );
+        } else if (currentUser.role === 'patient') {
+            // Pacientes solo ven a SUS doctores
+            const myAppts = getDataByType('appointment').filter(a => {
+                const pId = String(a.patient_id || "").toLowerCase().trim();
+                return pId === myName || pId === myUsername;
+            });
+            const myDoctorNames = [...new Set(myAppts.map(a => String(a.doctor_id).toLowerCase().trim()))];
+            
+            availableContacts = allUsers.filter(u => 
+                u.role === 'doctor' && (myDoctorNames.includes(String(u.name).toLowerCase().trim()) || myDoctorNames.includes(String(u.username).toLowerCase().trim()))
+            );
+        }
+
         availableContacts.forEach(user => {
             const contactName = user.name || user.username;
             if (contactName) {
@@ -2172,6 +2281,29 @@ window.openNewUserModal = function() {
                         <option value="AB+">AB+</option><option value="AB-">AB-</option>
                     </select>
                 </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Ocupación / Profesión</label>
+                    <input id="nu-occupation" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Oficinista, Maestro...">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">CURP / Identificación</label>
+                    <input id="nu-curp" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Clave de identidad">
+                </div>
+                
+                <div class="md:col-span-2 border-t border-white/5 pt-3 mt-1">
+                    <h4 class="text-xs font-bold text-rose-400 mb-3 flex items-center gap-2"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacto de Emergencia</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Nombre del familiar</label>
+                            <input id="nu-emergency-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. María Pérez">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono de emergencia</label>
+                            <input id="nu-emergency-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="10 dígitos">
+                        </div>
+                    </div>
+                </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-medium text-slate-400 mb-1">Dirección Completa</label>
                     <input id="nu-address" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Calle, número, colonia, ciudad...">
@@ -2198,7 +2330,6 @@ window.openNewUserModal = function() {
     </div>
     `);
 }
-
 window.saveNewUser = async function() {
     const role = document.getElementById('nu-role').value;
     const name = document.getElementById('nu-name').value.trim();
@@ -2262,7 +2393,6 @@ window.saveNewUser = async function() {
         }
     }
 }
-
 window.openEditUserModal = function(id) {
     const user = allData.find(d => d.__backendId === id);
     if(!user) return;
@@ -2285,8 +2415,6 @@ window.openEditUserModal = function(id) {
                     </select>
                 </div>
 
-                
-                
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Nombre Completo</label>
                     <input id="eu-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.name || ''}" required>
@@ -2326,7 +2454,30 @@ window.openEditUserModal = function(id) {
                         <option value="AB+" ${user.blood_type === 'AB+' ? 'selected' : ''}>AB+</option><option value="AB-" ${user.blood_type === 'AB-' ? 'selected' : ''}>AB-</option>
                     </select>
                 </div>
-                <div class="md:col-span-2">
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Ocupación / Profesión</label>
+                    <input id="eu-occupation" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.occupation || ''}" placeholder="Ej. Oficinista, Maestro...">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">CURP / Identificación</label>
+                    <input id="eu-curp" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.curp || ''}" placeholder="Clave de identidad">
+                </div>
+                
+                <div class="md:col-span-2 border-t border-white/5 pt-3 mt-1">
+                    <h4 class="text-xs font-bold text-amber-400 mb-3 flex items-center gap-2"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacto de Emergencia</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Nombre del familiar</label>
+                            <input id="eu-emergency-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.emergency_name || ''}" placeholder="Ej. María Pérez">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono de emergencia</label>
+                            <input id="eu-emergency-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.emergency_phone || ''}" placeholder="10 dígitos">
+                        </div>
+                    </div>
+                </div>
+                <div class="md:col-span-2 mt-2">
                     <label class="block text-xs font-medium text-slate-400 mb-1">Dirección Completa</label>
                     <input id="eu-address" type="text" class="w-full px-3 py-2 rounded-xl text-sm" value="${user.address || ''}">
                 </div>
@@ -2352,7 +2503,6 @@ window.openEditUserModal = function(id) {
     </div>
     `);
 }
-
 window.saveEditUser = function(id) {
     const role = document.getElementById('eu-role').value;
     const name = document.getElementById('eu-name').value.trim();
@@ -2606,17 +2756,23 @@ window.assignDoctorToSpecialty = function(specName) {
 function renderReports(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Módulo de reportes en construcción.</div>`; }
 function renderSettings(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Configuraciones locales guardadas con éxito.</div>`; }
 function renderPatients(el) {
-    // 1. Obtener TODAS las citas de la base de datos
-    const allAppts = getDataByType('appointment');
+    const myName = String(currentUser.name || "").toLowerCase().trim();
+    const myUsername = String(currentUser.username || "").toLowerCase().trim();
 
-    // 2. Extraer los nombres de todos los pacientes que han registrado al menos una cita
+    // 1. Obtener SOLO las citas del doctor actual
+    const allAppts = getDataByType('appointment').filter(a => {
+        if (currentUser.role === 'admin') return true;
+        const dId = String(a.doctor_id || "").toLowerCase().trim();
+        return dId === myName || dId === myUsername;
+    });
+
+    // 2. Extraer pacientes únicos de SUS citas
     const patientIdsWithAppts = [...new Set(allAppts.map(a => a.patient_id))];
 
-    // 3. Cruzar con la tabla de usuarios para traer sus datos (teléfono, sangre, etc.)
+    // 3. Cruzar con usuarios
     const allUsers = getDataByType('user');
     const myPatients = patientIdsWithAppts.map(pid => {
         const userProfile = allUsers.find(u => u.role === 'patient' && (u.name === pid || u.username === pid));
-        // Traemos todas las citas de este paciente, ordenadas por la más reciente
         const patientAppts = allAppts.filter(a => a.patient_id === pid).sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return {
@@ -2630,6 +2786,8 @@ function renderPatients(el) {
         };
     });
 
+    // ... (Aquí continúa intacto tu el.innerHTML = `...`)
+
     // 4. Renderizar las tarjetas
     el.innerHTML = `
     <div class="flex items-center gap-3 mb-6">
@@ -2642,22 +2800,26 @@ function renderPatients(el) {
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 fade-in">
         ${myPatients.length === 0 ? '<p class="text-slate-500 text-sm col-span-3 text-center py-8">Aún no hay pacientes con citas registradas en el sistema.</p>' :
         myPatients.map(p => `
-        <div class="glass rounded-2xl p-5 glow-sm hover:scale-[1.02] transition-all group border border-white/5">
-            <div class="flex items-center gap-4 mb-4 border-b border-white/5 pb-4">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-white text-lg font-bold shadow-lg flex-shrink-0">
-                    ${p.name.charAt(0).toUpperCase()}
+        <div class="glass rounded-2xl p-5 glow-sm hover:scale-[1.02] transition-all group border border-white/5 flex flex-col">
+            
+            <div onclick="window.showPatientProfile('${p.name}')" class="cursor-pointer flex-1 hover:opacity-80 transition-opacity" title="Ver Perfil Médico">
+                <div class="flex items-center gap-4 mb-4 border-b border-white/5 pb-4">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-white text-lg font-bold shadow-lg flex-shrink-0">
+                        ${p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-bold text-sm text-med-text truncate">${p.name}</p>
+                        <p class="text-xs text-slate-400 truncate">${p.email}</p>
+                    </div>
                 </div>
-                <div class="min-w-0">
-                    <p class="font-bold text-sm text-med-text truncate">${p.name}</p>
-                    <p class="text-xs text-slate-400 truncate">${p.email}</p>
+                <div class="space-y-2 text-xs text-slate-300">
+                    <div class="flex justify-between"><span class="text-slate-500">Teléfono:</span> <span>${p.phone}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Sexo/Sangre:</span> <span class="font-bold text-white">${p.gender === 'M' ? 'Masc.' : p.gender === 'F' ? 'Fem.' : p.gender} / <span class="text-rose-400">${p.blood}</span></span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Citas totales:</span> <span>${p.totalAppts}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Última cita:</span> <span>${p.lastApptDate ? formatDate(p.lastApptDate) : 'N/A'}</span></div>
                 </div>
             </div>
-            <div class="space-y-2 text-xs text-slate-300">
-                <div class="flex justify-between"><span class="text-slate-500">Teléfono:</span> <span>${p.phone}</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Sexo/Sangre:</span> <span>${p.gender === 'M' ? 'Masc.' : p.gender === 'F' ? 'Fem.' : p.gender} / ${p.blood}</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Citas totales:</span> <span>${p.totalAppts}</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Última cita:</span> <span>${p.lastApptDate ? formatDate(p.lastApptDate) : 'N/A'}</span></div>
-            </div>
+
             <div class="mt-4 pt-4 border-t border-white/5 flex gap-2">
                 <button onclick="window.openChatWith('${p.name}'); window.navigateTo('chat');" class="flex-1 py-2 rounded-lg bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 transition-all text-xs font-semibold flex items-center justify-center gap-1">
                     <i data-lucide="message-circle" class="w-4 h-4"></i> Chat
@@ -2669,6 +2831,101 @@ function renderPatients(el) {
         </div>
         `).join('')}
     </div>`;
+}
+
+// ========== PERFIL MÉDICO CONSOLIDADO ==========
+window.showPatientProfile = function(patientName) {
+    // 1. Extraer datos personales del usuario
+    const users = getDataByType('user');
+    const user = users.find(u => u.name === patientName || u.username === patientName) || {};
+
+    // 2. Extraer datos del Perfil de Salud (Health Profile)
+    const hp = getDataByType('health_profile').filter(h => h.patient_id === patientName || (user.username && h.patient_id === user.username));
+    const allergies = hp.filter(h => h.category === 'allergy');
+    const conditions = hp.filter(h => h.category === 'condition');
+    const meds = hp.filter(h => h.category === 'medication');
+
+    // 3. Calcular la edad a partir de la fecha de nacimiento
+    let ageStr = '--';
+    if (user.dob) {
+        const dob = new Date(user.dob);
+        const diff = Date.now() - dob.getTime();
+        const ageDate = new Date(diff);
+        ageStr = Math.abs(ageDate.getUTCFullYear() - 1970) + ' años';
+    }
+
+    // 4. Construir la ventana Modal
+    const html = `
+    <div class="p-6 text-slate-300">
+        <div class="flex items-center gap-4 mb-6 border-b border-white/10 pb-4">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg flex-shrink-0">
+                ${(user.name || patientName).charAt(0).toUpperCase()}
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-white">${user.name || patientName}</h3>
+                <p class="text-sm text-cyan-400 flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> ${user.email || 'Sin correo registrado'}</p>
+            </div>
+        </div>
+
+        <div class="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            
+            <div>
+                <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-3"><i data-lucide="user" class="w-4 h-4 text-cyan-400"></i> Ficha de Identificación</h4>
+                <div class="grid grid-cols-2 gap-3 text-sm bg-white/5 p-4 rounded-xl border border-white/5">
+                    <div><span class="text-slate-500 block text-xs mb-0.5">Teléfono Celular</span> <span class="font-medium text-white">${user.phone || 'N/A'}</span></div>
+                    <div><span class="text-slate-500 block text-xs mb-0.5">Edad / Fecha Nac.</span> <span class="font-medium text-white">${ageStr} ${user.dob ? `(${formatDate(user.dob)})` : ''}</span></div>
+                    <div><span class="text-slate-500 block text-xs mb-0.5">Género Identificado</span> <span class="font-medium text-white">${user.gender === 'M' ? 'Masculino' : user.gender === 'F' ? 'Femenino' : user.gender || 'N/A'}</span></div>
+                    <div><span class="text-slate-500 block text-xs mb-0.5">Tipo de Sangre</span> <span class="font-bold text-rose-400 flex items-center gap-1"><i data-lucide="droplets" class="w-3 h-3"></i> ${user.blood_type || 'Desconocido'}</span></div>
+                    <div><span class="text-slate-500 block text-xs mb-0.5">Ocupación / Profesión</span> <span class="font-medium text-white">${user.occupation || 'N/A'}</span></div>
+                    <div><span class="text-slate-500 block text-xs mb-0.5">CURP / DNI</span> <span class="font-medium text-white uppercase">${user.curp || 'N/A'}</span></div>
+                    <div class="col-span-2"><span class="text-slate-500 block text-xs mb-0.5">Dirección Completa</span> <span class="font-medium text-white">${user.address || 'N/A'}</span></div>
+                </div>
+            </div>
+
+            ${user.emergency_name ? `
+            <div>
+                <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-3"><i data-lucide="phone-call" class="w-4 h-4 text-amber-400"></i> Contacto de Emergencia</h4>
+                <div class="flex items-center justify-between bg-amber-400/5 border border-amber-400/20 p-4 rounded-xl">
+                    <div>
+                        <p class="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">Familiar Asignado</p>
+                        <p class="font-bold text-white text-sm">${user.emergency_name}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">Teléfono</p>
+                        <p class="font-bold text-white text-sm">${user.emergency_phone || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+
+            <div>
+                <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-3"><i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> Perfil de Salud Actual</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="p-3 rounded-xl bg-rose-400/5 border border-rose-400/10">
+                        <p class="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3"></i> Alergias</p>
+                        ${allergies.length === 0 ? '<p class="text-xs text-slate-500">Ninguna registrada</p>' : allergies.map(a => `<p class="text-xs text-white mb-1.5 font-medium">• ${a.name}</p>`).join('')}
+                    </div>
+                    <div class="p-3 rounded-xl bg-amber-400/5 border border-amber-400/10">
+                        <p class="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1"><i data-lucide="thermometer" class="w-3 h-3"></i> Condiciones</p>
+                        ${conditions.length === 0 ? '<p class="text-xs text-slate-500">Ninguna registrada</p>' : conditions.map(c => `<p class="text-xs text-white mb-1.5 font-medium">• ${c.name}</p>`).join('')}
+                    </div>
+                    <div class="p-3 rounded-xl bg-indigo-400/5 border border-indigo-400/10">
+                        <p class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1"><i data-lucide="pill" class="w-3 h-3"></i> Medicación</p>
+                        ${meds.length === 0 ? '<p class="text-xs text-slate-500">Ninguna registrada</p>' : meds.map(m => `<p class="text-xs text-white mb-1.5 font-medium">• ${m.name}</p>`).join('')}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        
+        <div class="mt-6 pt-4 border-t border-white/10 flex gap-3">
+            <button onclick="window.closeModal()" class="w-1/3 py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 transition-all text-white border border-white/10">Cerrar</button>
+            <button onclick="window.openChatWith('${patientName}'); window.navigateTo('chat'); window.closeModal();" class="w-2/3 py-2.5 rounded-xl text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-white transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar Mensaje Directo</button>
+        </div>
+    </div>
+    `;
+    
+    window.openModal(html);
 }
 function renderRecords(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Módulo de historial en construcción.</div>`; }
 function renderBookAppointment(el) {
@@ -2692,7 +2949,6 @@ function renderMyPrescriptions(el) { renderPrescriptions(el); }
 
 
 // ========== REGISTRO PÚBLICO DE PACIENTES ==========
-
 window.openPatientRegisterModal = function() {
     window.openModal(`
     <div class="p-6">
@@ -2703,23 +2959,49 @@ window.openPatientRegisterModal = function() {
             <h3 class="text-lg font-bold">Registro de Paciente</h3>
         </div>
         
-        <form id="patient-register-form" onsubmit="return false;" class="space-y-4">
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Nombre Completo</label>
-                <input id="pr-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Ana Martínez" required>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico</label>
-                <input id="pr-email" type="email" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="tu@correo.com" required>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Contraseña</label>
-                <input id="pr-password" type="password" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Mínimo 6 caracteres" required>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono</label>
-                <input id="pr-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="10 dígitos">
-            </div>
+        <form id="patient-register-form" onsubmit="return false;" class="space-y-4 max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nombre Completo</label>
+                    <input id="pr-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Ana Martínez" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico</label>
+                    <input id="pr-email" type="email" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="tu@correo.com" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Contraseña</label>
+                    <input id="pr-password" type="password" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Mínimo 6 caracteres" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono</label>
+                    <input id="pr-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="10 dígitos">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">CURP / Identificación</label>
+                    <input id="pr-curp" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Clave de identidad">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Ocupación / Profesión</label>
+                    <input id="pr-occupation" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. Oficinista, Estudiante...">
+                </div>
+
+                <div class="md:col-span-2 border-t border-white/5 pt-3 mt-1">
+                    <h4 class="text-xs font-bold text-rose-400 mb-3 flex items-center gap-2"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacto de Emergencia</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Nombre del familiar</label>
+                            <input id="pr-emergency-name" type="text" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="Ej. María Pérez">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Teléfono de emergencia</label>
+                            <input id="pr-emergency-phone" type="tel" class="w-full px-3 py-2 rounded-xl text-sm" placeholder="10 dígitos">
+                        </div>
+                    </div>
+                </div>
+                </div>
             
             <div class="pt-4 border-t border-white/10 mt-6">
                 <button onclick="window.registerPatient()" class="w-full text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-500/20" style="background: linear-gradient(135deg, #10B981, #059669);">
@@ -2742,17 +3024,25 @@ window.registerPatient = async function() {
     }
 
     try {
-        // 1. Crear el usuario en Firebase Authentication (Como nadie ha iniciado sesión, usamos la instancia principal de auth)
+        // 1. Crear el usuario en Firebase Authentication
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         
-        // 2. Preparamos los datos del paciente
+        // 2. Preparamos los datos del paciente (INCLUYENDO LOS NUEVOS)
         const userData = {
-            role: 'patient', // FORZAMOS EL ROL A PACIENTE
+            role: 'patient',
             name: name,
             email: email,
             password: password, 
             username: email.split('@')[0], 
             phone: phone,
+            
+            // --- Nuevos datos ---
+            curp: document.getElementById('pr-curp').value.trim(),
+            occupation: document.getElementById('pr-occupation').value.trim(),
+            emergency_name: document.getElementById('pr-emergency-name').value.trim(),
+            emergency_phone: document.getElementById('pr-emergency-phone').value.trim(),
+            // --------------------
+            
             created_at: new Date().toISOString()
         };
 

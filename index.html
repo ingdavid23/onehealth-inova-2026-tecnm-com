@@ -1930,11 +1930,11 @@ function renderChat(el) {
     // 1. Los administradores no pueden leer chats por privacidad
     if (currentUser.role === 'admin') {
         el.innerHTML = `<div class="glass rounded-2xl p-8 text-center mt-10 max-w-md mx-auto fade-in glow-sm">
-            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 border border-slate-700">
+            <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 border border-slate-200">
                 <i data-lucide="shield-alert" class="w-8 h-8 text-slate-400"></i>
             </div>
-            <h3 class="text-lg font-bold text-med-text mb-2">Acceso Restringido</h3>
-            <p class="text-sm text-slate-400">Por privacidad médica, los administradores no tienen acceso a los chats.</p>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Acceso Restringido</h3>
+            <p class="text-sm text-slate-500">Por privacidad médica, los administradores no tienen acceso a los chats.</p>
         </div>`;
         return;
     }
@@ -1946,35 +1946,28 @@ function renderChat(el) {
     const allMessages = getDataByType('message');
     const allUsers = getDataByType('user');
     
+    // ==========================================
     // VISTA 1: LISTA DE CHATS (Estilo WhatsApp)
+    // ==========================================
     if (!window.currentChatPartner) {
         let contactsMap = new Map();
 
-        // A) Cargar contactos sugeridos de forma estricta
+        // A) Cargar contactos sugeridos
         let availableContacts = [];
-        
         if (isDoctor) {
-            // Doctores solo ven a SUS propios pacientes confirmados/pendientes
             const myAppts = getDataByType('appointment').filter(a => {
                 const dId = String(a.doctor_id || "").toLowerCase().trim();
                 return dId === myName || dId === myUsername;
             });
             const myPatientNames = [...new Set(myAppts.map(a => String(a.patient_id).toLowerCase().trim()))];
-            
-            availableContacts = allUsers.filter(u => 
-                u.role === 'patient' && (myPatientNames.includes(String(u.name).toLowerCase().trim()) || myPatientNames.includes(String(u.username).toLowerCase().trim()))
-            );
+            availableContacts = allUsers.filter(u => u.role === 'patient' && (myPatientNames.includes(String(u.name).toLowerCase().trim()) || myPatientNames.includes(String(u.username).toLowerCase().trim())));
         } else if (currentUser.role === 'patient') {
-            // Pacientes solo ven a SUS doctores
             const myAppts = getDataByType('appointment').filter(a => {
                 const pId = String(a.patient_id || "").toLowerCase().trim();
                 return pId === myName || pId === myUsername;
             });
             const myDoctorNames = [...new Set(myAppts.map(a => String(a.doctor_id).toLowerCase().trim()))];
-            
-            availableContacts = allUsers.filter(u => 
-                u.role === 'doctor' && (myDoctorNames.includes(String(u.name).toLowerCase().trim()) || myDoctorNames.includes(String(u.username).toLowerCase().trim()))
-            );
+            availableContacts = allUsers.filter(u => u.role === 'doctor' && (myDoctorNames.includes(String(u.name).toLowerCase().trim()) || myDoctorNames.includes(String(u.username).toLowerCase().trim())));
         }
 
         availableContacts.forEach(user => {
@@ -1989,7 +1982,7 @@ function renderChat(el) {
             }
         });
 
-       // B) Sobrescribimos con el historial de mensajes reales
+       // B) Sobrescribir con historial real
        allMessages.forEach(m => {
             const sender = String(m.sender || "").toLowerCase().trim();
             const receiver = String(m.receiver || "").toLowerCase().trim();
@@ -1999,7 +1992,7 @@ function renderChat(el) {
 
             if (sender === myName || sender === myUsername) {
                 partnerKey = receiver;
-                partnerDisplayName = m.receiver; // Guardamos el nombre tal cual viene
+                partnerDisplayName = m.receiver;
             } else if (receiver === myName || receiver === myUsername) {
                 partnerKey = sender;
                 partnerDisplayName = m.sender;
@@ -2010,19 +2003,13 @@ function renderChat(el) {
                 const messageText = m.deleted ? "🚫 Mensaje eliminado" : (m.image ? "📷 Foto" : m.message);
                 
                 if (!contactsMap.has(partnerKey)) {
-                    contactsMap.set(partnerKey, { 
-                        displayName: partnerDisplayName, 
-                        lastMsg: messageText, 
-                        time: m.created_at, 
-                        unread: isUnread ? 1 : 0 
-                    });
+                    contactsMap.set(partnerKey, { displayName: partnerDisplayName, lastMsg: messageText, time: m.created_at, unread: isUnread ? 1 : 0 });
                 } else {
                     let contact = contactsMap.get(partnerKey);
-                    // CRUCIAL: Solo actualizamos si el mensaje es cronológicamente más reciente
                     if (new Date(m.created_at) > new Date(contact.time)) {
                         contact.lastMsg = messageText;
                         contact.time = m.created_at;
-                        contact.displayName = partnerDisplayName; // Mantenemos el nombre más fresco
+                        contact.displayName = partnerDisplayName;
                     }
                     if (isUnread) contact.unread += 1;
                     contactsMap.set(partnerKey, contact);
@@ -2030,35 +2017,32 @@ function renderChat(el) {
             }
         });
 
-        // C) ORDENAMIENTO CRÍTICO: El chat con el mensaje más reciente (time) va arriba.
-        let contacts = Array.from(contactsMap.values()).sort((a, b) => {
-            return new Date(b.time) - new Date(a.time);
-        });
+        let contacts = Array.from(contactsMap.values()).sort((a, b) => new Date(b.time) - new Date(a.time));
 
         el.innerHTML = `
-        <div class="glass rounded-2xl overflow-hidden fade-in h-full flex flex-col border border-white/5">
-            <div class="p-5 border-b border-white/5 bg-[#202c33] flex justify-between items-center">
-                <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                    <i data-lucide="message-circle" class="w-5 h-5 text-emerald-500"></i> Chats
+        <div class="bg-white rounded-2xl overflow-hidden fade-in h-full flex flex-col border border-slate-200 shadow-sm">
+            <div class="p-5 border-b border-slate-200 bg-white flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i data-lucide="message-circle" class="w-5 h-5 text-teal-600"></i> Mensajes
                 </h3>
             </div>
-            <div class="divide-y divide-white/5 overflow-y-auto flex-1 custom-scrollbar bg-[#111b21]">
+            <div class="divide-y divide-slate-100 overflow-y-auto flex-1 custom-scrollbar bg-slate-50">
                 ${contacts.length === 0 ? 
-                    `<div class="p-10 text-center"><i data-lucide="message-square-off" class="w-10 h-10 text-slate-600 mx-auto mb-3"></i><p class="text-slate-400 text-sm">No hay contactos disponibles.</p></div>` :
+                    `<div class="p-10 text-center"><i data-lucide="message-square-off" class="w-10 h-10 text-slate-400 mx-auto mb-3"></i><p class="text-slate-500 text-sm">No hay contactos disponibles.</p></div>` :
                 contacts.map(c => `
-                    <div class="flex items-center justify-between p-4 hover:bg-white/5 transition-all cursor-pointer group" onclick="window.openChatWith('${c.displayName}')">
+                    <div class="flex items-center justify-between p-4 hover:bg-white transition-all cursor-pointer group" onclick="window.openChatWith('${c.displayName}')">
                         <div class="flex items-center gap-4 w-full">
-                            <div class="relative w-12 h-12 rounded-full bg-gradient-to-br ${isDoctor ? 'from-emerald-400 to-emerald-600' : 'from-indigo-400 to-indigo-600'} flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                            <div class="relative w-12 h-12 rounded-full bg-gradient-to-br ${isDoctor ? 'from-emerald-400 to-teal-500' : 'from-indigo-400 to-indigo-500'} flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0">
                                 ${c.displayName.charAt(0).toUpperCase()}
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex justify-between items-baseline mb-0.5">
-                                    <p class="font-bold text-sm text-white truncate">${c.displayName}</p>
-                                    ${c.time !== '1970-01-01T00:00:00.000Z' ? `<p class="text-[10px] text-emerald-500">${new Date(c.time).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</p>` : ''}
+                                    <p class="font-bold text-sm text-slate-800 truncate">${c.displayName}</p>
+                                    ${c.time !== '1970-01-01T00:00:00.000Z' ? `<p class="text-[10px] text-slate-400">${new Date(c.time).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</p>` : ''}
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <p class="text-xs ${c.unread > 0 ? 'text-white font-medium' : 'text-slate-400'} truncate pr-4">${c.lastMsg}</p>
-                                    ${c.unread > 0 ? `<span class="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-[10px] font-bold text-[#111b21] flex-shrink-0 animate-pulse">${c.unread}</span>` : ''}
+                                    <p class="text-xs ${c.unread > 0 ? 'text-slate-800 font-bold' : 'text-slate-500'} truncate pr-4">${c.lastMsg}</p>
+                                    ${c.unread > 0 ? `<span class="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 animate-pulse">${c.unread}</span>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -2070,118 +2054,150 @@ function renderChat(el) {
         return;
     }
 
+    // ==========================================
     // VISTA 2: CHAT PRIVADO
+    // ==========================================
     const partner = window.currentChatPartner;
     const partnerClean = partner.toLowerCase().trim();
     
     // Marcar como leídos
-    allMessages.filter(m => 
-        String(m.sender).toLowerCase().trim() === partnerClean && 
-        (String(m.receiver).toLowerCase().trim() === myName || String(m.receiver).toLowerCase().trim() === myUsername) && 
-        !m.read
-    ).forEach(m => window.updateFirestoreRecord('messages', m.__backendId, { read: true }));
+    allMessages.filter(m => String(m.sender).toLowerCase().trim() === partnerClean && (String(m.receiver).toLowerCase().trim() === myName || String(m.receiver).toLowerCase().trim() === myUsername) && !m.read)
+        .forEach(m => window.updateFirestoreRecord('messages', m.__backendId, { read: true }));
 
-    // Filtrar mensajes de la conversación
+    // Filtrar y ordenar ESTRICTAMENTE por fecha en milisegundos
     const chatMessages = allMessages.filter(m => {
         const mSender = String(m.sender || "").toLowerCase().trim();
         const mReceiver = String(m.receiver || "").toLowerCase().trim();
-        
         const iSent = (mSender === myName || mSender === myUsername) && mReceiver === partnerClean;
         const iReceived = mSender === partnerClean && (mReceiver === myName || mReceiver === myUsername);
-        
         return iSent || iReceived;
-    }).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }).sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateA - dateB;
+    });
+
+    // Construcción de los globos de texto con agrupación inteligente
+    let chatHTML = '';
+    if (chatMessages.length === 0) {
+        chatHTML = '<div class="flex items-center justify-center gap-2 bg-teal-50 border border-teal-100 text-teal-700 px-4 py-2 rounded-full mx-auto mt-4 shadow-sm"><i data-lucide="lock" class="w-3.5 h-3.5"></i><p class="text-xs font-medium">Los mensajes están cifrados de extremo a extremo.</p></div>';
+    } else {
+        let lastSender = null;
+        chatMessages.forEach((m, index) => {
+            const mSender = String(m.sender || "").toLowerCase().trim();
+            const isMine = mSender === myName || mSender === myUsername;
+            
+            // Lógica para redondear las esquinas y agrupar visualmente
+            const isFirstInGroup = lastSender !== mSender;
+            lastSender = mSender;
+            
+            const nextMsg = chatMessages[index + 1];
+            const nextSender = nextMsg ? String(nextMsg.sender || "").toLowerCase().trim() : null;
+            const isLastInGroup = nextSender !== mSender;
+
+            const marginClass = isLastInGroup ? 'mb-3' : 'mb-1';
+            
+            // Forma de la burbuja (estilo WhatsApp)
+            let bubbleShape = 'rounded-2xl';
+            if (isMine && isFirstInGroup) bubbleShape += ' rounded-tr-sm';
+            if (!isMine && isFirstInGroup) bubbleShape += ' rounded-tl-sm';
+
+            // Colores claros y naturales
+            const bubbleColors = isMine 
+                ? 'bg-[#E0F2F1] text-teal-900 border border-[#B2DFDB]' 
+                : 'bg-white text-slate-800 border border-slate-200';
+
+            const timeString = new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+            chatHTML += `
+            <div class="flex ${isMine ? 'justify-end' : 'justify-start'} ${marginClass} fade-in px-2 sm:px-4 w-full">
+                <div class="${bubbleColors} px-3 py-2 max-w-[85%] sm:max-w-[70%] shadow-sm relative group min-w-[100px] ${bubbleShape}">
+                    
+                    ${isMine && !m.deleted ? `
+                        <div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-black/5 backdrop-blur-md rounded-bl-lg rounded-tr-sm p-1 z-20">
+                            <button onclick="window.editMessage('${m.__backendId}', '${(m.message || '').replace(/'/g, "\\'")}')" class="text-teal-700 hover:text-teal-900"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="window.deleteMessageForEveryone('${m.__backendId}')" class="text-red-500 hover:text-red-700"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    ` : ''}
+
+                    ${m.image ? `
+                        <div class="mb-2 mt-1 rounded overflow-hidden cursor-pointer" onclick="window.openImageFull('${m.image}')">
+                            <img src="${m.image}" class="max-w-full h-auto rounded border border-black/5 shadow-inner">
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Contenedor Flex para separar texto y hora, evitando que se encimen -->
+                    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-1 sm:gap-4">
+                        <p class="text-[14px] leading-snug ${m.deleted ? 'italic text-slate-500' : ''} break-words whitespace-pre-wrap">
+                            ${m.deleted ? '<i data-lucide="ban" class="w-3 h-3 inline mr-1 text-red-400"></i>Este mensaje fue eliminado' : m.message}
+                            ${m.edited && !m.deleted ? '<span class="text-[10px] text-slate-400 ml-1">(editado)</span>' : ''}
+                        </p>
+                        
+                        <div class="flex items-center gap-1 shrink-0 self-end">
+                            <span class="text-[10px] ${isMine ? 'text-teal-700/60' : 'text-slate-400'}">${timeString}</span>
+                            ${isMine ? `<i data-lucide="check-check" class="w-3.5 h-3.5 ${m.read ? 'text-teal-500' : 'text-teal-700/30'}"></i>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+    }
 
     el.innerHTML = `
-    <div class="rounded-2xl h-full flex flex-col overflow-hidden fade-in border border-white/5" style="max-height: calc(100% - 1rem); background-color: #0B141A;">
+    <div class="rounded-2xl h-full flex flex-col overflow-hidden fade-in border border-slate-200 shadow-sm bg-slate-50" style="max-height: calc(100% - 1rem);">
         
-        <div class="p-3 flex items-center justify-between bg-[#202c33] z-10 shadow-sm">
+        <!-- HEADER DEL CHAT -->
+        <div class="p-3 flex items-center justify-between bg-white border-b border-slate-200 z-10">
             <div class="flex items-center gap-3">
-                <button onclick="window.closeChat()" class="p-2 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-all">
+                <button onclick="window.closeChat()" class="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-all">
                     <i data-lucide="arrow-left" class="w-5 h-5"></i>
                 </button>
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br ${isDoctor ? 'from-emerald-400 to-emerald-600' : 'from-indigo-400 to-indigo-600'} flex items-center justify-center text-white text-sm font-bold shadow-md">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br ${isDoctor ? 'from-emerald-400 to-teal-500' : 'from-indigo-400 to-indigo-500'} flex items-center justify-center text-white text-sm font-bold shadow-sm">
                     ${partner.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                    <p class="font-bold text-sm text-white leading-tight">${partner}</p>
-                    <p class="text-[10px] text-emerald-500 flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> Encriptado</p>
+                    <p class="font-bold text-sm text-slate-800 leading-tight">${partner}</p>
+                    <p class="text-[10px] text-teal-600 flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> Encriptado</p>
                 </div>
             </div>
             
-          
-<div class="flex items-center gap-1">
-    <!-- Botón Borrar Historial (Existente) -->
-    <button onclick="window.clearChatHistory()" class="w-10 h-10 rounded-full hover:bg-slate-200/20 flex items-center justify-center text-slate-400 hover:text-red-400 transition-all shadow-sm" title="Vaciar Chat">
-        <i data-lucide="trash-2" class="w-5 h-5"></i>
-    </button>
-    
-    <!-- 👇 NUEVO BOTÓN: Llamada de Voz 👇 -->
-    <button onclick="window.startVoiceCall()" class="w-10 h-10 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 flex items-center justify-center text-cyan-400 transition-all shadow-sm" title="Iniciar Llamada de Voz">
-        <i data-lucide="phone" class="w-5 h-5"></i>
-    </button>
-
-    <!-- Botón Video (Existente) -->
-    <button onclick="window.startVideoCall()" class="w-10 h-10 rounded-full bg-[#00a884]/20 hover:bg-[#00a884]/40 flex items-center justify-center text-[#00a884] transition-all shadow-sm" title="Iniciar Videoconsulta">
-        <i data-lucide="video" class="w-5 h-5 ml-0.5"></i>
-    </button>
-</div>
+            <div class="flex items-center gap-1">
+                <button onclick="window.clearChatHistory()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all" title="Vaciar Chat">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+                <button onclick="window.startVoiceCall()" class="w-10 h-10 rounded-full bg-cyan-50 hover:bg-cyan-100 flex items-center justify-center text-cyan-600 transition-all" title="Iniciar Llamada">
+                    <i data-lucide="phone" class="w-5 h-5"></i>
+                </button>
+                <button onclick="window.startVideoCall()" class="w-10 h-10 rounded-full bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all" title="Iniciar Videoconsulta">
+                    <i data-lucide="video" class="w-5 h-5 ml-0.5"></i>
+                </button>
+            </div>
         </div>
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative">
-            <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
+
+        <!-- ZONA DE MENSAJES -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-0 sm:p-4 custom-scrollbar relative bg-[#efeae2]">
+            <div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
             
-           <div class="relative z-10 flex flex-col space-y-3">
-                ${chatMessages.length === 0 ? 
-                    '<div class="flex items-center justify-center gap-2 bg-[#E0F2F1] text-slate-600 px-4 py-2 rounded-full mx-auto mt-4 shadow-sm"><i data-lucide="lock" class="w-3.5 h-3.5"></i><p class="text-xs font-medium">No hay mensajes previos.</p></div>' :
-                    chatMessages.map(m => {
-                        const mSender = String(m.sender || "").toLowerCase().trim();
-                        const isMine = mSender === myName || mSender === myUsername;
-                        
-                        return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'} fade-in mb-2">
-                            <div class="${isMine ? 'bg-[#005c4b]' : 'bg-[#202c33]'} text-[#e9edef] px-3 py-1.5 max-w-[85%] rounded-lg shadow-sm relative group min-w-[80px]">
-                                
-                                ${isMine && !m.deleted ? `
-                                    <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-black/20 rounded-md p-0.5 z-20">
-                                        <button onclick="window.editMessage('${m.__backendId}', '${m.message}')" class="p-1 hover:text-cyan-400"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                                        <button onclick="window.deleteMessageForEveryone('${m.__backendId}')" class="p-1 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-                                    </div>
-                                ` : ''}
-
-                                ${m.image ? `
-                                    <div class="mb-1 mt-1 rounded overflow-hidden cursor-pointer" onclick="window.openImageFull('${m.image}')">
-                                        <img src="${m.image}" class="max-w-full h-auto rounded border border-white/10 shadow-inner">
-                                    </div>
-                                ` : ''}
-                                
-                                <p class="text-[14px] leading-snug ${m.deleted ? 'italic text-slate-500' : ''} pr-10 pb-2">
-                                    ${m.deleted ? '🚫 Este mensaje fue eliminado' : m.message}
-                                    ${m.edited && !m.deleted ? '<span class="text-[9px] text-slate-400 ml-1">(editado)</span>' : ''}
-                                </p>
-
-                                <div class="absolute bottom-1 right-2 flex items-center gap-1">
-                                    <p class="text-[9px] text-[#8696a0]">${new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</p>
-                                    ${isMine ? `<i data-lucide="check-check" class="w-[12px] h-[12px] ${m.read ? 'text-[#53bdeb]' : 'text-[#8696a0]'}"></i>` : ''}
-                                </div>
-                            </div>
-                        </div>`;
-                    }).join('')
-                }
+            <div class="relative z-10 flex flex-col py-4">
+                ${chatHTML}
             </div>
         </div>
         
-        <div class="p-3 bg-[#202c33] flex items-center gap-2 z-10">
-            <button onclick="document.getElementById('chat-file-input').click()" class="p-2 text-slate-400 hover:text-white transition-colors">
+        <!-- ZONA DE ENTRADA -->
+        <div class="p-3 bg-white flex items-center gap-2 z-10 border-t border-slate-200">
+            <button onclick="document.getElementById('chat-file-input').click()" class="p-2 text-slate-400 hover:text-teal-600 transition-colors">
                 <i data-lucide="paperclip" class="w-6 h-6"></i>
             </button>
             <input type="file" id="chat-file-input" class="hidden" accept="image/*" onchange="window.handleChatImage(this)">
             
-            <input id="chat-input" class="flex-1 px-4 py-3 rounded-full text-[15px] bg-[#2a3942] text-[#d1d7db] border-none focus:outline-none placeholder-[#8696a0]" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') window.sendMessage()">
+            <input id="chat-input" class="flex-1 px-4 py-3 rounded-full text-[15px] bg-slate-100 text-slate-800 border border-slate-200 focus:outline-none focus:border-teal-400 placeholder-slate-400 transition-colors" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') window.sendMessage()">
             
-            <button onclick="window.sendMessage()" class="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white shadow-md hover:bg-[#008f6f] transition-colors flex-shrink-0">
+            <button onclick="window.sendMessage()" class="w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center text-white shadow-md hover:bg-teal-700 transition-colors flex-shrink-0">
                 <i data-lucide="send" class="w-5 h-5 ml-1"></i>
             </button>
         </div>
     </div>`;
+    
     lucide.createIcons({ nodes: [el] });
     setTimeout(() => {
         const box = document.getElementById('chat-messages');

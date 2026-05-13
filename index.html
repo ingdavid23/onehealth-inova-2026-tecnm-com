@@ -3482,13 +3482,17 @@ window.saveEditClinicalNote = function(id) {
 
 function renderBookAppointment(el) {
     el.innerHTML = `
-    <div class="glass rounded-2xl p-8 text-center max-w-lg mx-auto mt-10 fade-in glow-sm">
-        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-cyan-500/30">
-            <i data-lucide="calendar-plus" class="w-10 h-10 text-white"></i>
+    <div class="glass rounded-2xl p-8 text-center max-w-lg mx-auto mt-10 fade-in border border-slate-200 shadow-sm">
+        <!-- 👇 CÍRCULO DEL ÍCONO MODIFICADO 👇 -->
+        <div class="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-6 border border-teal-100 shadow-sm">
+            <i data-lucide="calendar-plus" class="w-10 h-10 text-teal-600"></i>
         </div>
-        <h2 class="text-2xl font-bold text-med-text mb-2">Agendar Nueva Cita</h2>
-        <p class="text-sm text-slate-400 mb-8">Selecciona la especialidad que necesitas y el sistema te mostrará los médicos disponibles para atenderte.</p>
-        <button onclick="window.openNewAppointmentModal()" class="btn-primary text-white font-bold py-3 px-8 rounded-xl text-sm shadow-lg shadow-cyan-500/20">
+        <!-- 👆 FIN CÍRCULO 👆 -->
+
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">Agendar Nueva Cita</h2>
+        <p class="text-sm text-slate-500 mb-8">Selecciona la especialidad que necesitas y el sistema te mostrará los médicos disponibles para atenderte.</p>
+        
+        <button onclick="window.openNewAppointmentModal()" class="btn-primary text-white font-bold py-3 px-8 rounded-xl text-sm shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 transition-all">
             Comenzar Reservación
         </button>
     </div>

@@ -282,6 +282,41 @@
         </div>
     </div>
 
+    
+
+        <!-- Panel Lateral Deslizante -->
+        <div id="ai-chat-panel" class="fixed top-0 right-0 h-full w-80 sm:w-96 max-w-[100vw] bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
+            <!-- Cabecera -->
+            <div class="p-4 bg-gradient-to-r from-indigo-500 to-purple-600 flex justify-between items-center text-white shadow-md">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                        <i data-lucide="bot" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm leading-tight">OneHealth AI</h3>
+                        <p class="text-[10px] text-indigo-100">Asistente Inteligente</p>
+                    </div>
+                </div>
+                <button onclick="window.toggleAIChat()" class="text-white/80 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors outline-none"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <!-- Zona de Mensajes -->
+            <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 text-sm custom-scrollbar relative">
+                <div class="bg-indigo-50 border border-indigo-100 text-indigo-900 p-3 rounded-2xl rounded-tl-none max-w-[85%] shadow-sm">
+                    ¡Hola! Soy tu asistente inteligente. Conozco tus datos médicos y agenda. ¿En qué te puedo ayudar hoy?
+                </div>
+            </div>
+            
+            <!-- Input de Texto -->
+            <div class="p-3 bg-white border-t border-slate-200 flex gap-2 items-end">
+                <textarea id="ai-chat-input" rows="1" class="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:bg-white text-sm resize-none custom-scrollbar transition-all" placeholder="Pregunta algo..." onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); window.sendAIMessage(); }"></textarea>
+                <button onclick="window.sendAIMessage()" class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 shadow-md transition-colors flex-shrink-0 outline-none">
+                    <i data-lucide="send" class="w-4 h-4 ml-1"></i>
+                </button>
+            </div>
+        </div>
+        <!-- 👆 FIN: INTERFAZ DEL CHATBOT IA 👆 -->
+
     <script type="module">
       // Importar funciones de Firebase (Version 10+)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -594,6 +629,7 @@ function buildSidebar() {
             { id: 'my-appointments', icon: 'calendar', label: 'Mis Citas' },
             { id: 'my-records', icon: 'file-text', label: 'Mi Historial' },
             { id: 'my-prescriptions', icon: 'pill', label: 'Mis Recetas' },
+            { id: 'triage', icon: 'mic', label: 'Triaje Acústico' }, // <--- NUEVO MÓDULO AÑADIDO AL PACIENTE
             { id: 'chat', icon: 'message-circle', label: 'Chat' },
             { id: 'health-profile', icon: 'heart-pulse', label: 'Perfil de Salud' },
         ]
@@ -2956,7 +2992,256 @@ window.assignDoctorToSpecialty = function(specName) {
     window.closeModal();
     window.showToast(`Doctor asignado a ${specName}`);
 }
-function renderReports(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Módulo de reportes en construcción.</div>`; }
+// ========== MÓDULO DE REPORTES Y ESTADÍSTICAS (ADMIN) ==========
+function renderReports(el) {
+    if (currentUser.role !== 'admin') {
+        el.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center text-slate-500 border border-slate-200 shadow-sm fade-in">Acceso denegado. Solo administradores.</div>`;
+        return;
+    }
+
+    // 1. Recopilar datos generales
+    const users = getDataByType('user');
+    const appts = getDataByType('appointment');
+    const rx = getDataByType('prescription');
+
+    const patientsCount = users.filter(u => u.role === 'patient').length;
+    const doctorsCount = users.filter(u => u.role === 'doctor').length;
+    
+    // 2. Filtrar datos del mes actual
+    const now = new Date();
+    const currentMonthStr = now.toISOString().slice(0, 7); // Formato "YYYY-MM"
+    
+    const apptsThisMonth = appts.filter(a => a.date && a.date.startsWith(currentMonthStr));
+    const rxThisMonth = rx.filter(r => r.created_at && r.created_at.startsWith(currentMonthStr));
+    
+    const completedAppts = apptsThisMonth.filter(a => a.status === 'completed').length;
+    const pendingAppts = apptsThisMonth.filter(a => a.status === 'pending').length;
+
+    // 3. Renderizar la Vista
+    el.innerHTML = `
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm fade-in">
+        <div>
+            <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900"><i data-lucide="bar-chart-3" class="text-teal-600"></i> Reportes y Estadísticas</h2>
+            <p class="text-xs text-slate-500 mt-1">Resumen general de la plataforma de este mes (${now.toLocaleDateString('es-MX', {month: 'long', year: 'numeric'})})</p>
+        </div>
+        <button onclick="window.generateSystemReport()" class="btn-primary text-white font-semibold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow w-full sm:w-auto justify-center hover:bg-teal-700 transition-colors">
+            <i data-lucide="download" class="w-4 h-4"></i> Descargar Reporte Mensual
+        </button>
+    </div>
+
+    <!-- Tarjetas de Resumen -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 fade-in">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100"><i data-lucide="users" class="w-6 h-6"></i></div>
+            <div><p class="text-2xl font-bold text-slate-800">${patientsCount}</p><p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Pacientes</p></div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100"><i data-lucide="stethoscope" class="w-6 h-6"></i></div>
+            <div><p class="text-2xl font-bold text-slate-800">${doctorsCount}</p><p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Doctores</p></div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100"><i data-lucide="calendar" class="w-6 h-6"></i></div>
+            <div><p class="text-2xl font-bold text-slate-800">${apptsThisMonth.length}</p><p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Citas (Mes)</p></div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100"><i data-lucide="pill" class="w-6 h-6"></i></div>
+            <div><p class="text-2xl font-bold text-slate-800">${rxThisMonth.length}</p><p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Recetas (Mes)</p></div>
+        </div>
+    </div>
+
+    <!-- Zona de Gráficas -->
+    <div class="grid lg:grid-cols-3 gap-6 fade-in">
+        <div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-1">Evolución de Citas</h3>
+            <p class="text-xs text-slate-500 mb-4">Comparativa de los últimos 6 meses</p>
+            <div class="w-full h-64 relative"><canvas id="adminChartLine"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col">
+            <h3 class="font-bold text-slate-800 mb-1">Estado de Citas</h3>
+            <p class="text-xs text-slate-500 mb-4">Distribución global</p>
+            <div class="w-full flex-1 relative flex items-center justify-center min-h-[200px]"><canvas id="adminChartDoughnut"></canvas></div>
+        </div>
+    </div>
+    `;
+
+    lucide.createIcons({ nodes: [el] });
+
+    // Renderizar gráficas con un ligero retraso para asegurar que el DOM cargó
+    setTimeout(() => {
+        window.renderAdminCharts(appts);
+    }, 150);
+}
+
+window.adminChartInstances = {};
+
+window.renderAdminCharts = function(allAppts) {
+    if (window.adminChartInstances.line) window.adminChartInstances.line.destroy();
+    if (window.adminChartInstances.doughnut) window.adminChartInstances.doughnut.destroy();
+
+    // 1. Procesar datos para gráfica de Línea (Últimos 6 meses)
+    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const last6Months = [];
+    const apptsPerMonth = [];
+    
+    const d = new Date();
+    for (let i = 5; i >= 0; i--) {
+        const pastDate = new Date(d.getFullYear(), d.getMonth() - i, 1);
+        const monthStr = pastDate.toISOString().slice(0, 7); // YYYY-MM
+        last6Months.push(monthNames[pastDate.getMonth()]);
+        
+        // Contar citas en ese mes
+        const count = allAppts.filter(a => a.date && a.date.startsWith(monthStr)).length;
+        apptsPerMonth.push(count);
+    }
+
+    // Gráfica de Líneas
+    const ctxLine = document.getElementById('adminChartLine').getContext('2d');
+    window.adminChartInstances.line = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+            labels: last6Months,
+            datasets: [{
+                label: 'Citas Programadas',
+                data: apptsPerMonth,
+                borderColor: '#00A896', // Teal
+                backgroundColor: 'rgba(0, 168, 150, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#00A896'
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    // 2. Procesar datos para gráfica de Dona (Estado de citas)
+    let completed = 0, pending = 0, cancelled = 0;
+    allAppts.forEach(a => {
+        if(a.status === 'completed') completed++;
+        else if(a.status === 'pending') pending++;
+        else if(a.status === 'cancelled') cancelled++;
+    });
+
+    const ctxDoughnut = document.getElementById('adminChartDoughnut').getContext('2d');
+    window.adminChartInstances.doughnut = new Chart(ctxDoughnut, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completadas', 'Pendientes', 'Canceladas'],
+            datasets: [{
+                data: [completed, pending, cancelled],
+                backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], // Verde, Amarillo, Rojo
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: { 
+            responsive: true, maintainAspectRatio: false, cutout: '70%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } } } 
+        }
+    });
+};
+
+// Generador de Reporte PDF Mensual
+window.generateSystemReport = function() {
+    window.showToast('Generando reporte en PDF...', 'info');
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const now = new Date();
+    const currentMonthStr = now.toISOString().slice(0, 7);
+    const monthName = now.toLocaleDateString('es-MX', {month: 'long', year: 'numeric'}).toUpperCase();
+
+    // Obtener Datos Actuales
+    const users = getDataByType('user');
+    const appts = getDataByType('appointment');
+    const rx = getDataByType('prescription');
+
+    const totalPatients = users.filter(u => u.role === 'patient').length;
+    const totalDoctors = users.filter(u => u.role === 'doctor').length;
+    const apptsMonth = appts.filter(a => a.date && a.date.startsWith(currentMonthStr));
+    const rxMonth = rx.filter(r => r.created_at && r.created_at.startsWith(currentMonthStr));
+
+    // --- DISEÑO DEL PDF ---
+    // Cabecera
+    doc.setFillColor(0, 168, 150); // Color Teal
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("ONEHEALTH", 15, 20);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text("Reporte Estadístico del Sistema", 15, 28);
+    
+    doc.setFontSize(10);
+    doc.text(`Periodo: ${monthName}`, 140, 20);
+    doc.text(`Generado: ${now.toLocaleDateString('es-MX')}`, 140, 26);
+
+    // Título de Sección
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumen Mensual de Actividad", 15, 60);
+    doc.line(15, 63, 195, 63);
+
+    // Métricas en cuadros de texto
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    
+    let yPos = 80;
+    
+    // Función de ayuda para dibujar bloques
+    const drawStatBlock = (title, value, x, y) => {
+        doc.setFillColor(245, 247, 250);
+        doc.setDrawColor(200, 200, 200);
+        doc.roundedRect(x, y, 85, 25, 3, 3, 'FD');
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text(title, x + 5, y + 10);
+        doc.setTextColor(0, 168, 150);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text(String(value), x + 5, y + 20);
+        doc.setFont("helvetica", "normal");
+    };
+
+    drawStatBlock("Total Pacientes Registrados", totalPatients, 15, yPos);
+    drawStatBlock("Total Doctores Activos", totalDoctors, 110, yPos);
+    
+    yPos += 35;
+    drawStatBlock("Citas Agendadas (Este Mes)", apptsMonth.length, 15, yPos);
+    drawStatBlock("Recetas Emitidas (Este Mes)", rxMonth.length, 110, yPos);
+
+    yPos += 45;
+    
+    // Detalle de Estado de Citas
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Desglose de Citas del Mes", 15, yPos);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    yPos += 10;
+    
+    const completed = apptsMonth.filter(a => a.status === 'completed').length;
+    const pending = apptsMonth.filter(a => a.status === 'pending').length;
+    const cancelled = apptsMonth.filter(a => a.status === 'cancelled').length;
+
+    doc.text(`• Citas Completadas: ${completed}`, 20, yPos);
+    doc.text(`• Citas Pendientes: ${pending}`, 20, yPos + 8);
+    doc.text(`• Citas Canceladas: ${cancelled}`, 20, yPos + 16);
+
+    // Pie de página
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(9);
+    doc.text("Documento generado automáticamente por el Administrador del Sistema OneHealth.", 105, 280, {align: "center"});
+
+    // Descargar
+    doc.save(`Reporte_OneHealth_${now.toISOString().slice(0,10)}.pdf`);
+};
 function renderSettings(el) { el.innerHTML = `<div class="glass rounded-2xl p-6 text-center text-slate-400 fade-in">Configuraciones locales guardadas con éxito.</div>`; }
 function renderPatients(el) {
     const myName = String(currentUser.name || "").toLowerCase().trim();
@@ -3634,140 +3919,185 @@ window.isTriageRecording = false;
 window.hasTriageAudio = false;
 
 function renderTriage(el) {
-    // 1. Extraer los pacientes que le pertenecen al doctor
+    if (currentUser.role === 'admin') {
+        el.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center text-slate-500 border border-slate-200">Módulo exclusivo para médicos y pacientes.</div>`;
+        return;
+    }
+
     const myName = String(currentUser.name || "").toLowerCase().trim();
     const myUsername = String(currentUser.username || "").toLowerCase().trim();
-    const allAppts = getDataByType('appointment').filter(a => {
-        if (currentUser.role === 'admin') return true;
-        const dId = String(a.doctor_id || "").toLowerCase().trim();
-        return dId === myName || dId === myUsername;
-    });
     
-    // Lista única de pacientes
-    const patientIds = [...new Set(allAppts.map(a => a.patient_id))].sort();
+    let targetSelectorHTML = '';
+    let initialDataCall = '';
 
-    // 2. Dibujar la vista
-    el.innerHTML = `
-    <div class="grid lg:grid-cols-2 gap-6 fade-in">
+    // LÓGICA DE INTERFAZ: Si es Doctor vs Si es Paciente
+    if (currentUser.role === 'doctor') {
+        const allAppts = getDataByType('appointment').filter(a => {
+            const dId = String(a.doctor_id || "").toLowerCase().trim();
+            return dId === myName || dId === myUsername;
+        });
+        const patientIds = [...new Set(allAppts.map(a => a.patient_id))].sort();
         
-        <div class="space-y-4">
-            <h3 class="font-bold text-teal-600 text-sm mb-2">1. Registro de Paciente</h3>
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
-                
+        targetSelectorHTML = `
+            <h3 class="font-bold text-teal-600 text-sm mb-2">1. Seleccionar Paciente</h3>
+            <div class="relative">
+                <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10"></i>
+                <select id="triage-patient" onchange="window.fillTriagePatientData()" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em] bg-white">
+                    <option value="">Selecciona un paciente registrado...</option>
+                    ${patientIds.map(p => `<option value="${p}">${p}</option>`).join('')}
+                </select>
+            </div>
+            <input type="hidden" id="triage-doctor" value="${currentUser.name}">
+        `;
+    } else {
+        // ES PACIENTE: Auto-seleccionar su nombre y elegir al doctor destino
+        const allAppts = getDataByType('appointment').filter(a => {
+            const pId = String(a.patient_id || "").toLowerCase().trim();
+            return pId === myName || pId === myUsername;
+        });
+        let doctorIds = [...new Set(allAppts.map(a => a.doctor_id))].sort();
+        
+        if (doctorIds.length === 0) {
+            const allDocs = getDataByType('user').filter(u => u.role === 'doctor');
+            doctorIds = allDocs.map(d => d.name).sort();
+        }
+        
+        targetSelectorHTML = `
+            <h3 class="font-bold text-teal-600 text-sm mb-2">1. Preparar Auto-Triaje</h3>
+            <div class="space-y-3 mb-1">
+                <div class="relative hidden"> <!-- Ocultamos el nombre para limpieza visual -->
+                    <input id="triage-patient" type="text" readonly value="${currentUser.name}">
+                </div>
                 <div class="relative">
-                    <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10"></i>
-                    <select id="triage-patient" onchange="window.fillTriagePatientData()" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 transition-colors outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em]">
-                        <option value="">Selecciona un paciente registrado...</option>
-                        ${patientIds.map(p => `<option value="${p}">${p}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="relative">
-                        <i data-lucide="cake" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                        <input id="triage-age" type="number" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border-slate-200 focus:border-teal-500 transition-colors outline-none border" placeholder="Edad">
-                    </div>
-                    <select id="triage-gender" class="w-full px-3 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em]">
-                        <option value="Hombre">Hombre</option>
-                        <option value="Mujer">Mujer</option>
-                        <option value="Otro">Otro</option>
-                    </select>
-                </div>
-
-                <div class="pt-2">
-                    <h4 class="text-xs font-bold text-teal-600 mb-3">Signos Vitales</h4>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="relative">
-                            <i data-lucide="activity" class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
-                            <input id="triage-spo2" type="number" class="w-full pl-7 pr-2 py-2 rounded-lg text-sm border border-slate-200 focus:border-teal-500 outline-none" placeholder="SpO2 %">
-                        </div>
-                        <div class="relative">
-                            <i data-lucide="heart" class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
-                            <input id="triage-bpm" type="number" class="w-full pl-7 pr-2 py-2 rounded-lg text-sm border border-slate-200 focus:border-teal-500 outline-none" placeholder="BPM">
-                        </div>
-                        <div class="relative">
-                            <i data-lucide="thermometer" class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
-                            <input id="triage-temp" type="number" step="0.1" class="w-full pl-7 pr-2 py-2 rounded-lg text-sm border border-slate-200 focus:border-teal-500 outline-none" placeholder="°C">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="relative pt-2">
-                    <i data-lucide="briefcase-medical" class="absolute left-3 top-1/2 translate-y-1 w-4 h-4 text-slate-400 z-10"></i>
-                    <select id="triage-symptom" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em]">
-                        <option>Tos Seca</option>
-                        <option>Tos con Flema</option>
-                        <option>Sibilancias</option>
-                        <option>Falta de aire (Disnea)</option>
+                    <i data-lucide="stethoscope" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10"></i>
+                    <select id="triage-doctor" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em] bg-white">
+                        <option value="">¿A qué doctor enviarás tu análisis?</option>
+                        ${doctorIds.map(d => `<option value="${d}">Dr(a). ${d}</option>`).join('')}
                     </select>
                 </div>
             </div>
-        </div>
+        `;
+        initialDataCall = `setTimeout(() => { window.fillTriagePatientData(); }, 300);`;
+    }
 
-        <div class="space-y-4">
-            <h3 class="font-bold text-teal-600 text-sm mb-2">2. Captura de Audio</h3>
-            
-            <div class="bg-white rounded-2xl p-10 border border-slate-200 shadow-sm flex flex-col items-center justify-center min-h-[280px]">
-                <button id="btn-triage-record" onclick="window.toggleTriageRecording()" class="w-24 h-24 rounded-full border-[3px] border-teal-600 bg-teal-50 flex items-center justify-center text-teal-600 hover:bg-teal-100 transition-all shadow-sm mb-4 group outline-none focus:outline-none">
-                    <i id="icon-triage-mic" data-lucide="mic" class="w-10 h-10 transition-transform"></i>
+    el.innerHTML = `
+    <div class="fade-in w-full">
+        <div class="grid lg:grid-cols-2 gap-6">
+            <!-- COLUMNA 1: Formulario -->
+            <div class="space-y-4">
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                    
+                    ${targetSelectorHTML}
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="relative">
+                            <i data-lucide="cake" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                            <input id="triage-age" type="number" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 focus:border-teal-500 outline-none bg-slate-50 ${currentUser.role === 'patient' ? 'cursor-not-allowed' : ''}" placeholder="Edad" ${currentUser.role === 'patient' ? 'readonly' : ''}>
+                        </div>
+                        <select id="triage-gender" class="w-full px-3 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em] bg-white ${currentUser.role === 'patient' ? 'pointer-events-none bg-slate-50' : ''}">
+                            <option value="Hombre">Hombre</option>
+                            <option value="Mujer">Mujer</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="pt-2">
+                        <h4 class="text-xs font-bold text-teal-600 mb-3">Signos Vitales Actuales</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="relative">
+                                <i data-lucide="activity" class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
+                                <input id="triage-spo2" type="number" oninput="window._updateLiveCharts()" class="w-full pl-7 pr-2 py-2 rounded-lg text-sm border border-slate-200 focus:border-teal-500 outline-none bg-white" placeholder="SpO2 %">
+                            </div>
+                            <div class="relative">
+                                <i data-lucide="heart" class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
+                                <input id="triage-bpm" type="number" oninput="window._updateLiveCharts()" class="w-full pl-7 pr-2 py-2 rounded-lg text-sm border border-slate-200 focus:border-teal-500 outline-none bg-white" placeholder="BPM">
+                            </div>
+                            <div class="relative">
+                                <i data-lucide="thermometer" class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
+                                <input id="triage-temp" type="number" step="0.1" class="w-full pl-7 pr-2 py-2 rounded-lg text-sm border border-slate-200 focus:border-teal-500 outline-none bg-white" placeholder="°C">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative pt-2">
+                        <i data-lucide="briefcase-medical" class="absolute left-3 top-1/2 translate-y-1 w-4 h-4 text-slate-400 z-10"></i>
+                        <select id="triage-symptom" onchange="window._updateLiveCharts()" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em] bg-white">
+                            <option>Tos Seca</option>
+                            <option>Tos con Flema</option>
+                            <option>Sibilancias</option>
+                            <option>Falta de aire (Disnea)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA 2: Captura de Audio -->
+            <div class="space-y-4">
+                <h3 class="font-bold text-teal-600 text-sm mb-2">2. Captura de Audio</h3>
+                
+                <div class="bg-white rounded-2xl p-10 border border-slate-200 shadow-sm flex flex-col items-center justify-center min-h-[280px]">
+                    <button id="btn-triage-record" onclick="window.toggleTriageRecording()" class="w-24 h-24 rounded-full border-[3px] border-teal-600 bg-teal-50 flex items-center justify-center text-teal-600 hover:bg-teal-100 transition-all shadow-sm mb-4 group outline-none focus:outline-none">
+                        <i id="icon-triage-mic" data-lucide="mic" class="w-10 h-10 transition-transform"></i>
+                    </button>
+                    <p id="text-triage-status" class="text-slate-500 text-sm transition-colors">Toque para iniciar</p>
+                    
+                    <div id="triage-waveform" class="hidden mt-4 flex gap-1.5 items-end h-8">
+                        <div class="w-1.5 bg-teal-400 rounded-full animate-[bounce_1s_infinite] h-full"></div>
+                        <div class="w-1.5 bg-teal-500 rounded-full animate-[bounce_1.2s_infinite] h-2/3"></div>
+                        <div class="w-1.5 bg-teal-400 rounded-full animate-[bounce_0.8s_infinite] h-1/2"></div>
+                        <div class="w-1.5 bg-teal-600 rounded-full animate-[bounce_1.5s_infinite] h-4/5"></div>
+                        <div class="w-1.5 bg-teal-500 rounded-full animate-[bounce_1.1s_infinite] h-full"></div>
+                    </div>
+                </div>
+
+                <button id="btn-triage-process" onclick="window.processTriageAnalysis()" disabled class="w-full py-3.5 rounded-xl text-white font-bold tracking-wider uppercase text-sm bg-slate-300 cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-sm outline-none focus:outline-none">
+                    <i id="icon-triage-process" data-lucide="bar-chart-2" class="w-4 h-4"></i> <span id="text-triage-process">Procesar Análisis y Enviar</span>
                 </button>
-                <p id="text-triage-status" class="text-slate-500 text-sm transition-colors">Toque para iniciar</p>
-                
-                <div id="triage-waveform" class="hidden mt-4 flex gap-1.5 items-end h-8">
-                    <div class="w-1.5 bg-teal-400 rounded-full animate-[bounce_1s_infinite] h-full"></div>
-                    <div class="w-1.5 bg-teal-500 rounded-full animate-[bounce_1.2s_infinite] h-2/3"></div>
-                    <div class="w-1.5 bg-teal-400 rounded-full animate-[bounce_0.8s_infinite] h-1/2"></div>
-                    <div class="w-1.5 bg-teal-600 rounded-full animate-[bounce_1.5s_infinite] h-4/5"></div>
-                    <div class="w-1.5 bg-teal-500 rounded-full animate-[bounce_1.1s_infinite] h-full"></div>
-                </div>
             </div>
-
-            <!-- ... (Tu código existente del botón Procesar Análisis) ... -->
-            <button id="btn-triage-process" onclick="window.processTriageAnalysis()" disabled class="w-full py-3.5 rounded-xl text-white font-bold tracking-wider uppercase text-sm bg-slate-300 cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-sm outline-none focus:outline-none">
-                <i id="icon-triage-process" data-lucide="bar-chart-2" class="w-4 h-4"></i> <span id="text-triage-process">Procesar Análisis</span>
-            </button>
         </div>
-    </div>
 
-    <!-- 👇 NUEVA ZONA DE ESTADÍSTICAS (Oculta por defecto) 👇 -->
-    <div id="triage-stats-zone" class="hidden mt-8 p-6 bg-white rounded-2xl border border-slate-200 shadow-sm fade-in">
-        <h2 id="triage-stats-title" class="text-xl font-bold text-slate-800 mb-6">Estadísticas de Gravedad de Paciente</h2>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Gráfica 1: Tendencia -->
-            <div class="flex flex-col items-center">
-                <h4 class="text-sm font-bold text-slate-800 mb-1 text-center">Tendencia de Puntuación de Salud</h4>
-                <p class="text-[11px] text-slate-500 mb-4 text-center">(Análisis Acústico & Vitales - Últimos 30 días)</p>
-                <div class="w-full h-48 relative"><canvas id="chartTrend"></canvas></div>
-            </div>
+        <!-- ZONA DE ESTADÍSTICAS -->
+        <div id="triage-stats-zone" class="hidden mt-8 p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <h2 id="triage-stats-title" class="text-xl font-bold text-slate-800 mb-6">Estadísticas de Gravedad de Paciente</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Gráfica 1: Tendencia -->
+                <div class="flex flex-col items-center">
+                    <h4 class="text-sm font-bold text-slate-800 mb-1 text-center">Tendencia de Puntuación de Salud</h4>
+                    <p class="text-[11px] text-slate-500 mb-4 text-center">(Análisis Acústico & Vitales - Últimos 30 días)</p>
+                    <div class="w-full h-48 relative"><canvas id="chartTrend"></canvas></div>
+                </div>
 
-            <!-- Gráfica 2: Gauge (Velocímetro) -->
-            <div class="flex flex-col items-center justify-center border-x border-slate-100 px-4 relative">
-                <h4 class="text-sm font-bold text-slate-800 mb-4 text-center">Puntuación de Gravedad General</h4>
-                <div class="w-48 h-48 relative flex items-center justify-center">
-                    <canvas id="chartGauge"></canvas>
-                    <div class="absolute flex flex-col items-center justify-center mt-8">
-                        <span id="gauge-score" class="text-4xl font-black text-slate-800">68%</span>
-                        <span id="gauge-label" class="text-xs font-bold text-amber-600 uppercase tracking-wider mt-1">Riesgo Medio</span>
+                <!-- Gráfica 2: Gauge (Velocímetro) -->
+                <div class="flex flex-col items-center justify-center border-x border-slate-100 px-4 relative">
+                    <h4 class="text-sm font-bold text-slate-800 mb-4 text-center">Puntuación de Gravedad General</h4>
+                    <div class="w-48 h-48 relative flex items-center justify-center">
+                        <canvas id="chartGauge"></canvas>
+                        <div class="absolute flex flex-col items-center justify-center mt-8">
+                            <span id="gauge-score" class="text-4xl font-black text-slate-800">68%</span>
+                            <span id="gauge-label" class="text-xs font-bold text-amber-600 uppercase tracking-wider mt-1">Riesgo Medio</span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Gráfica 3: Radar -->
-            <div class="flex flex-col items-center">
-                <h4 class="text-sm font-bold text-slate-800 mb-1 text-center">Desglose de Riesgos</h4>
-                <p class="text-[11px] text-slate-500 mb-4 text-center">(Último Análisis)</p>
-                <div class="w-full h-48 relative"><canvas id="chartRadar"></canvas></div>
+                <!-- Gráfica 3: Radar -->
+                <div class="flex flex-col items-center">
+                    <h4 class="text-sm font-bold text-slate-800 mb-1 text-center">Desglose de Riesgos</h4>
+                    <p class="text-[11px] text-slate-500 mb-4 text-center">(Último Análisis)</p>
+                    <div class="w-full h-48 relative"><canvas id="chartRadar"></canvas></div>
+                </div>
             </div>
         </div>
     </div>
-    <!-- 👆 FIN NUEVA ZONA 👆 -->
     `;
+    
     lucide.createIcons({ nodes: [el] });
     
-    // Reiniciamos variables cada que entramos
     window.isTriageRecording = false;
     window.hasTriageAudio = false;
+
+    // Si es paciente, ejecuta la autocompletación
+    if (initialDataCall) eval(initialDataCall);
 }
 
 
@@ -3814,13 +4144,20 @@ window.processTriageAnalysis = function() {
     const patient = document.getElementById('triage-patient').value;
     const spo2 = document.getElementById('triage-spo2').value;
     const symptom = document.getElementById('triage-symptom').value;
+    const doctorInput = document.getElementById('triage-doctor'); // Puede venir del select o del input hidden
 
     if (!patient) {
         return window.showToast("Por favor selecciona un paciente primero", "error");
     }
+    
+    // Nueva validación para Pacientes
+    if (currentUser.role === 'patient' && doctorInput && !doctorInput.value) {
+        return window.showToast("Selecciona a qué doctor enviarás los resultados", "error");
+    }
 
     // Cambiar el botón a estado "Cargando"
     const processBtn = document.getElementById('btn-triage-process');
+// ... (El resto de la función se queda exactamente igual) ...
     const processText = document.getElementById('text-triage-process');
     const processIcon = document.getElementById('icon-triage-process');
 
@@ -3876,32 +4213,42 @@ window.processTriageAnalysis = function() {
     }, 3000);
 };
 
-// Función para guardar automáticamente el análisis como una nota médica
 window.saveTriageAsNote = function(patient, symptom, severity) {
+    const doctorInput = document.getElementById('triage-doctor');
+    let targetDoctor = currentUser.name; 
+
+    // Si existe el campo (ya sea hidden del doc o select del paciente), tomamos su valor
+    if (doctorInput && doctorInput.value) {
+        targetDoctor = doctorInput.value;
+    }
+
     window.createFirestoreRecord('records', {
         patient_id: patient,
-        doctor_id: currentUser.name,
-        reason: "Análisis por Triaje Acústico Automático",
+        doctor_id: targetDoctor,
+        reason: currentUser.role === 'patient' ? "Auto-Triaje Acústico desde App Paciente" : "Análisis por Triaje Acústico Automático",
         exploration: `Captura de audio procesada por IA. Patrón sugestivo de ${symptom}.`,
         diagnosis: `Posible afección respiratoria (${severity})`,
-        plan: "Se recomienda valoración presencial para confirmar diagnóstico clínico.",
+        plan: currentUser.role === 'patient' ? "Pendiente de valoración y confirmación médica." : "Se recomienda valoración presencial para confirmar diagnóstico clínico.",
         created_at: new Date().toISOString()
     });
     
     window.closeModal();
-    // Lo mandamos a la pestaña de historial clínico automáticamente
+    window.showToast(currentUser.role === 'patient' ? 'Resultados enviados a tu doctor y anexados a tu historial.' : 'Análisis anexado correctamente.', 'success');
+    
     setTimeout(() => {
-        window.navigateTo('records');
-        window.openPatientRecord(patient); 
+        if (currentUser.role === 'patient') {
+            window.navigateTo('my-records'); // El paciente va a "Mi Historial"
+        } else {
+            window.navigateTo('records'); // El doctor va a la lista de pacientes
+            window.openPatientRecord(patient); 
+        }
     }, 800);
 }
-
 // ============================================================================
 // LÓGICA DINÁMICA DE GRÁFICAS (HISTORIAL + TRIAJE EN TIEMPO REAL)
 // ============================================================================
 
 window.analyzePatientData = function(patientName) {
-    // 1. Obtener el historial médico real del paciente de la base de datos
     const records = getDataByType('record')
         .filter(r => r.patient_id === patientName)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
@@ -3909,12 +4256,10 @@ window.analyzePatientData = function(patientName) {
     let dates = [];
     let trend = [];
     
-    // --- 2. Procesar el Historial (Pasado) ---
+    // --- HISTORIAL (El Pasado) ---
     records.forEach(r => {
         dates.push(formatDate(r.created_at));
-        let health = 100; // Iniciamos con salud perfecta
-        
-        // Penalizaciones basadas en signos vitales históricos
+        let health = 100;
         if (r.hr) {
             const hr = parseInt(r.hr);
             if (hr > 100) health -= (hr - 100);
@@ -3926,79 +4271,74 @@ window.analyzePatientData = function(patientName) {
         if (r.reason && r.reason.includes('Triaje Acústico')) {
             health -= r.diagnosis.includes('Moderado/Grave') ? 30 : 15;
         }
-        
-        trend.push(Math.max(10, Math.min(100, Math.round(health)))); // Mantener la salud entre 10 y 100
+        trend.push(Math.max(10, Math.min(100, Math.round(health))));
     });
 
-    // --- 3. Calcular Riesgos Base (Para Gráfica de Radar) ---
     const latest = records.length > 0 ? records[records.length - 1] : {};
     let hrRisk = 0, voiceRisk = 0, bpRisk = 0, spo2Risk = 0, sympRisk = 10;
-    let histRisk = Math.min(100, records.length * 15); // A más historial, ligero aumento de cronicidad
+    let histRisk = Math.min(100, records.length * 15);
 
-    if (latest.hr) {
-        const hr = parseInt(latest.hr);
-        if (hr > 100) hrRisk = Math.min(100, (hr - 100) * 2);
-        else if (hr < 60) hrRisk = Math.min(100, (60 - hr) * 2);
-    }
     if (latest.bp) {
         const sys = parseInt(latest.bp.split('/')[0]);
         if (sys > 130) bpRisk = Math.min(100, (sys - 130) * 2);
     }
 
-    // --- 4. INTEGRACIÓN EN TIEMPO REAL (El Presente) ---
-    // Leemos lo que el doctor está escribiendo en el Triaje AHORA MISMO
+    // --- EN VIVO (Lo que el doctor teclea ahora mismo) ---
     const inputSpo2 = document.getElementById('triage-spo2');
     const inputBpm = document.getElementById('triage-bpm');
     const inputSymptom = document.getElementById('triage-symptom');
 
     let isTypingNow = false;
-    let currentHealth = trend.length > 0 ? trend[trend.length - 1] : 100;
+    let liveHealth = 100; // Iniciamos la salud actual al 100%
 
-    // Afectar gráficas por SpO2 en vivo
-    if (inputSpo2 && inputSpo2.value) {
+    // Castigo drástico por baja oxigenación
+    if (inputSpo2 && inputSpo2.value !== "") {
         isTypingNow = true;
         const spo2 = parseInt(inputSpo2.value);
         spo2Risk = spo2 < 95 ? Math.min(100, (95 - spo2) * 8) : 0;
-        currentHealth -= (spo2Risk / 2);
+        liveHealth -= spo2Risk; 
     }
     
-    // Afectar gráficas por Frecuencia Cardíaca en vivo
-    if (inputBpm && inputBpm.value) {
+    // Castigo por taquicardia o bradicardia
+    if (inputBpm && inputBpm.value !== "") {
         isTypingNow = true;
         const bpm = parseInt(inputBpm.value);
-        if (bpm > 100) hrRisk = Math.min(100, (bpm - 100) * 2);
-        else if (bpm < 60) hrRisk = Math.min(100, (60 - bpm) * 2);
-        currentHealth -= (hrRisk / 2);
+        if (bpm > 100) hrRisk = Math.min(100, (bpm - 100) * 1.5);
+        else if (bpm < 60) hrRisk = Math.min(100, (60 - bpm) * 1.5);
+        else hrRisk = 0;
+        liveHealth -= hrRisk;
     }
 
-    // Afectar gráficas por Síntoma Acústico en vivo
-    if (inputSymptom && inputSymptom.value !== "Tos Seca") {
+    // Castigo por síntomas respiratorios graves
+    if (inputSymptom && inputSymptom.value) {
         isTypingNow = true;
         const symp = inputSymptom.value;
         if (symp === "Sibilancias" || symp === "Falta de aire (Disnea)") {
             voiceRisk = 85;
             sympRisk = 90;
-            currentHealth -= 35;
-        } else {
+            liveHealth -= 40; // Resta inmediata de salud
+        } else if (symp !== "Tos Seca") {
             voiceRisk = 45;
             sympRisk = 40;
-            currentHealth -= 15;
+            liveHealth -= 20;
+        } else {
+            voiceRisk = 10;
+            sympRisk = 10;
         }
     }
 
-    // Si el doctor está llenando datos, proyectamos el nuevo punto en la gráfica
+    // Proyectar el riesgo en la gráfica en vivo
     if (isTypingNow || records.length === 0) {
         dates.push("Análisis Actual");
-        trend.push(Math.max(10, Math.min(100, Math.round(currentHealth))));
+        trend.push(Math.max(10, Math.min(100, Math.round(liveHealth))));
     }
 
-    // --- 5. Calcular Gravedad General (Velocímetro) ---
     if (dates.length === 0) return { dates: ['Sin datos'], trend: [0], riskScore: 0, riskLabel: "Sin Datos", riskColor: "#94A3B8", radarData: [0,0,0,0,0,0] };
 
-    let riskScore = 100 - trend[trend.length - 1]; // Riesgo es el inverso de la salud
+    // El Riesgo es lo contrario a la salud (Si tu salud es 20, tu riesgo es 80%)
+    let riskScore = 100 - trend[trend.length - 1]; 
+    
     let riskLabel, riskColor;
-
-    // Asignación de colores dinámicos
     if (riskScore < 35) {
         riskLabel = "Riesgo Bajo"; riskColor = "#10B981"; // Verde
     } else if (riskScore < 70) {
@@ -4008,7 +4348,7 @@ window.analyzePatientData = function(patientName) {
     }
 
     return {
-        dates: dates.slice(-10), // Últimos 10 puntos para no saturar la vista
+        dates: dates.slice(-10),
         trend: trend.slice(-10),
         riskScore, riskLabel, riskColor,
         radarData: [hrRisk, voiceRisk, bpRisk, spo2Risk, sympRisk, histRisk]
@@ -4021,7 +4361,7 @@ window._updateLiveCharts = function() {
     if (patientName) window.renderTriageCharts(patientName);
 };
 
-// Función para autocompletar paciente y encender el modo "En Vivo"
+// Función para autocompletar paciente y encender el panel
 window.fillTriagePatientData = function() {
     const patientName = document.getElementById('triage-patient').value;
     const ageInput = document.getElementById('triage-age');
@@ -4029,6 +4369,7 @@ window.fillTriagePatientData = function() {
     const statsZone = document.getElementById('triage-stats-zone');
     const statsTitle = document.getElementById('triage-stats-title');
 
+    // Si vuelve a la opción por defecto, limpia y oculta
     if (!patientName) {
         ageInput.value = '';
         genderSelect.value = 'Hombre';
@@ -4036,29 +4377,21 @@ window.fillTriagePatientData = function() {
         return;
     }
 
+    // Autocompletar datos
     const allUsers = getDataByType('user');
     const user = allUsers.find(u => u.role === 'patient' && (u.name === patientName || u.username === patientName));
+    
     if (user) {
         ageInput.value = user.dob ? calculateAge(user.dob) : '';
         genderSelect.value = user.gender === 'M' ? 'Hombre' : user.gender === 'F' ? 'Mujer' : 'Otro';
     }
 
-    // Mostrar panel de gráficas
+    // Mostrar panel de gráficas (la magia de actualización en vivo la maneja el HTML directamente)
     if (statsZone) {
         statsZone.classList.remove('hidden');
         statsTitle.textContent = `Estadísticas de Gravedad de Paciente: ${patientName}`;
         window.renderTriageCharts(patientName);
     }
-
-    // Conectar los campos del formulario para que las gráficas cambien EN VIVO al escribir
-    const inputsToWatch = ['triage-spo2', 'triage-bpm', 'triage-symptom'];
-    inputsToWatch.forEach(id => {
-        const el = document.getElementById(id);
-        if(el) {
-            el.removeEventListener('input', window._updateLiveCharts); // Evitar duplicados
-            el.addEventListener('input', window._updateLiveCharts);
-        }
-    });
 };
 
 // Variable global para destruir gráficas viejas y evitar que se encimen
@@ -4141,6 +4474,148 @@ window.renderTriageCharts = function(patientName) {
     });
 };
 
+// ============================================================================
+// MÓDULO: CHATBOT IA GEMINI CON CONTEXTO DINÁMICO
+// ============================================================================
+
+const GEMINI_API_KEY = "AIzaSyDs04naQXzzd98FXH4z8Ux8NLx1ltgAVzY";
+
+// Mostrar/Ocultar el panel
+window.toggleAIChat = function() {
+    const panel = document.getElementById('ai-chat-panel');
+    panel.classList.toggle('translate-x-full');
+    
+    // Si se abre y los íconos no han cargado dentro del panel, forzarlos
+    if (!panel.classList.contains('translate-x-full')) {
+        lucide.createIcons({ nodes: [panel] });
+        document.getElementById('ai-chat-input').focus();
+    }
+};
+
+// Creador de Contexto (La magia que le dice a la IA quién eres y qué datos tienes)
+window.buildAIContext = function() {
+    if (!currentUser) return "Eres un asistente de salud.";
+
+    const myName = String(currentUser.name || currentUser.username).toLowerCase().trim();
+    
+    // Extraer datos relevantes de la base de datos local
+    const myAppts = getDataByType('appointment').filter(a => {
+        const dId = String(a.doctor_id || "").toLowerCase().trim();
+        const pId = String(a.patient_id || "").toLowerCase().trim();
+        return currentUser.role === 'doctor' ? dId === myName : pId === myName;
+    });
+    
+    const myRx = getDataByType('prescription').filter(p => {
+        const dId = String(p.doctor_id || "").toLowerCase().trim();
+        const pId = String(p.patient_id || "").toLowerCase().trim();
+        return currentUser.role === 'doctor' ? dId === myName : pId === myName;
+    });
+
+    let context = `Tu rol: Eres 'OneHealth AI', el asistente virtual integrado en el software clínico OneHealth. Te estás comunicando con un usuario logeado como ${currentUser.role.toUpperCase()} llamado ${currentUser.name}. Responde siempre en español, de forma amable, profesional, concisa y usando formato Markdown si es necesario listas o negritas. NO des respuestas larguísimas a menos que se te pida.\n\n`;
+
+    if (currentUser.role === 'doctor') {
+        const pending = myAppts.filter(a => a.status === 'pending').length;
+        context += `DATOS DEL DOCTOR: Tienes ${myAppts.length} citas en total programadas en la plataforma, de las cuales ${pending} están pendientes de confirmar. Has emitido ${myRx.length} recetas a tus pacientes.\nOBJETIVO: Ayuda al doctor a organizar su día, redactar justificaciones médicas, analizar posibles diagnósticos (como segunda opinión), o darle recordatorios de su agenda.`;
+    } 
+    else if (currentUser.role === 'patient') {
+        const nextAppts = myAppts.filter(a => a.status === 'confirmed' || a.status === 'pending');
+        
+        let medsString = "Ninguno registrado";
+        if (myRx.length > 0) {
+            const latestRx = myRx.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            if (latestRx && latestRx.medications) {
+                medsString = latestRx.medications.map(m => `${m.name} (${m.frequency})`).join(', ');
+            }
+        }
+
+        context += `DATOS DEL PACIENTE: Tienes ${nextAppts.length} próximas citas en tu agenda. Tus medicamentos actuales recetados por el doctor son: [${medsString}]. \nOBJETIVO: Ayuda al paciente a recordar sus medicamentos, responde dudas genéricas de salud, nutrición y descanso. ADVERTENCIA: Nunca des un diagnóstico médico definitivo, siempre aclara que deben consultar a su médico tratante si los síntomas son graves.`;
+    } 
+    else {
+        context += "OBJETIVO: Eres el administrador del sistema. Ayuda con tareas de TI, gestión de usuarios y métricas.";
+    }
+
+    return context;
+};
+
+// Dibujar mensajes en la interfaz
+window.appendAIMessage = function(text, sender) {
+    const container = document.getElementById('ai-chat-messages');
+    const msgDiv = document.createElement('div');
+    
+    // Parseo muy simple de Markdown para negritas (*texto* o **texto**)
+    const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+    
+    if (sender === 'user') {
+        msgDiv.className = 'bg-slate-800 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] ml-auto text-[13px] shadow-sm';
+        msgDiv.textContent = text; // User input as raw text
+    } else {
+        msgDiv.className = 'bg-indigo-50 border border-indigo-100 text-indigo-900 p-3 rounded-2xl rounded-tl-none max-w-[90%] text-[13px] shadow-sm leading-relaxed';
+        msgDiv.innerHTML = formattedText; // AI input with bold parsing
+    }
+    
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Enviar el mensaje a Google Gemini
+window.sendAIMessage = async function() {
+    const input = document.getElementById('ai-chat-input');
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+
+    // 1. Mostrar mensaje del usuario
+    window.appendAIMessage(userMessage, 'user');
+    input.value = '';
+    
+    // 2. Mostrar indicador de "Pensando..."
+    const container = document.getElementById('ai-chat-messages');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'ai-loading';
+    loadingDiv.className = 'text-indigo-400 text-xs italic flex items-center gap-1.5 mt-2';
+    loadingDiv.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Analizando datos...';
+    container.appendChild(loadingDiv);
+    lucide.createIcons({ nodes: [loadingDiv] });
+    container.scrollTop = container.scrollHeight;
+
+    // 3. Crear el "Prompt" combinando el contexto del sistema y la pregunta
+    const systemContext = window.buildAIContext();
+    const finalPrompt = `[INSTRUCCIONES DE SISTEMA ESTRICTAS]\n${systemContext}\n\n[PREGUNTA DEL USUARIO]\n${userMessage}`;
+    
+    try {
+        // Petición REST a Gemini 1.5 Flash
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: finalPrompt }] }]
+            })
+        });
+
+        const data = await response.json();
+        
+        // Remover el loader
+        document.getElementById('ai-loading')?.remove();
+
+        // 👇 NUEVA LÓGICA: CAPTURA EXACTA DEL ERROR DE GOOGLE 👇
+        if (!response.ok) {
+            console.error("Error devuelto por la API de Gemini:", data);
+            const errorMsg = data.error && data.error.message ? data.error.message : "Error desconocido de la API.";
+            window.appendAIMessage(`⚠️ **Error de Google API:** ${errorMsg}`, 'ai');
+            return; // Detenemos la ejecución aquí
+        }
+
+        if (data.candidates && data.candidates.length > 0) {
+            const aiResponseText = data.candidates[0].content.parts[0].text;
+            window.appendAIMessage(aiResponseText, 'ai');
+        } else {
+            window.appendAIMessage("Lo siento, la IA no devolvió ninguna respuesta procesable.", 'ai');
+        }
+    } catch (error) {
+        document.getElementById('ai-loading')?.remove();
+        window.appendAIMessage("⚠️ **Error Crítico de Conexión.** Abre la consola del navegador (F12) para ver los detalles.", 'ai');
+        console.error("Error en el Fetch de Gemini:", error);
+    }
+};
 
 
     </script>

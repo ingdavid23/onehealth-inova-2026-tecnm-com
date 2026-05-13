@@ -3951,16 +3951,9 @@ function renderTriage(el) {
         `;
     } else {
         // ES PACIENTE: Auto-seleccionar su nombre y elegir al doctor destino
-        const allAppts = getDataByType('appointment').filter(a => {
-            const pId = String(a.patient_id || "").toLowerCase().trim();
-            return pId === myName || pId === myUsername;
-        });
-        let doctorIds = [...new Set(allAppts.map(a => a.doctor_id))].sort();
-        
-        if (doctorIds.length === 0) {
-            const allDocs = getDataByType('user').filter(u => u.role === 'doctor');
-            doctorIds = allDocs.map(d => d.name).sort();
-        }
+        // 👇 CORRECCIÓN: Filtrar ESTRICTAMENTE por doctores activos actuales 👇
+        const activeDoctors = getDataByType('user').filter(u => u.role === 'doctor');
+        const doctorIds = activeDoctors.map(d => d.name).sort();
         
         targetSelectorHTML = `
             <h3 class="font-bold text-teal-600 text-sm mb-2">1. Preparar Auto-Triaje</h3>
@@ -3972,7 +3965,9 @@ function renderTriage(el) {
                     <i data-lucide="stethoscope" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10"></i>
                     <select id="triage-doctor" class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-700 focus:border-teal-500 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:right_0.75rem_center] bg-[length:1.2em_1.2em] bg-white">
                         <option value="">¿A qué doctor enviarás tu análisis?</option>
-                        ${doctorIds.map(d => `<option value="${d}">Dr(a). ${d}</option>`).join('')}
+                        ${doctorIds.length > 0 
+                            ? doctorIds.map(d => `<option value="${d}">Dr(a). ${d}</option>`).join('')
+                            : '<option value="" disabled>No hay doctores activos disponibles</option>'}
                     </select>
                 </div>
             </div>

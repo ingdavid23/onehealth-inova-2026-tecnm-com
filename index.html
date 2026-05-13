@@ -1947,12 +1947,11 @@ function renderChat(el) {
     const allUsers = getDataByType('user');
     
     // ==========================================
-    // VISTA 1: LISTA DE CHATS (Estilo WhatsApp)
+    // VISTA 1: LISTA DE CHATS (Bandeja de Entrada)
     // ==========================================
     if (!window.currentChatPartner) {
         let contactsMap = new Map();
 
-        // A) Cargar contactos sugeridos
         let availableContacts = [];
         if (isDoctor) {
             const myAppts = getDataByType('appointment').filter(a => {
@@ -1982,7 +1981,6 @@ function renderChat(el) {
             }
         });
 
-       // B) Sobrescribir con historial real
        allMessages.forEach(m => {
             const sender = String(m.sender || "").toLowerCase().trim();
             const receiver = String(m.receiver || "").toLowerCase().trim();
@@ -2055,16 +2053,16 @@ function renderChat(el) {
     }
 
     // ==========================================
-    // VISTA 2: CHAT PRIVADO
+    // VISTA 2: CHAT PRIVADO (Estilo WhatsApp Nativo)
     // ==========================================
     const partner = window.currentChatPartner;
     const partnerClean = partner.toLowerCase().trim();
     
-    // Marcar como leídos
+    // Marcar mensajes como leídos
     allMessages.filter(m => String(m.sender).toLowerCase().trim() === partnerClean && (String(m.receiver).toLowerCase().trim() === myName || String(m.receiver).toLowerCase().trim() === myUsername) && !m.read)
         .forEach(m => window.updateFirestoreRecord('messages', m.__backendId, { read: true }));
 
-    // Filtrar y ordenar ESTRICTAMENTE por fecha en milisegundos
+    // Filtrar y ORDENAR STRICTAMENTE (Los más viejos primero, los más nuevos al final)
     const chatMessages = allMessages.filter(m => {
         const mSender = String(m.sender || "").toLowerCase().trim();
         const mReceiver = String(m.receiver || "").toLowerCase().trim();
@@ -2072,73 +2070,93 @@ function renderChat(el) {
         const iReceived = mSender === partnerClean && (mReceiver === myName || mReceiver === myUsername);
         return iSent || iReceived;
     }).sort((a, b) => {
-        const dateA = new Date(a.created_at || 0).getTime();
-        const dateB = new Date(b.created_at || 0).getTime();
-        return dateA - dateB;
+        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
     });
 
-    // Construcción de los globos de texto con agrupación inteligente
     let chatHTML = '';
+    let lastDateStr = null;
+
     if (chatMessages.length === 0) {
         chatHTML = '<div class="flex items-center justify-center gap-2 bg-teal-50 border border-teal-100 text-teal-700 px-4 py-2 rounded-full mx-auto mt-4 shadow-sm"><i data-lucide="lock" class="w-3.5 h-3.5"></i><p class="text-xs font-medium">Los mensajes están cifrados de extremo a extremo.</p></div>';
     } else {
-        let lastSender = null;
         chatMessages.forEach((m, index) => {
             const mSender = String(m.sender || "").toLowerCase().trim();
             const isMine = mSender === myName || mSender === myUsername;
             
-            // Lógica para redondear las esquinas y agrupar visualmente
-            const isFirstInGroup = lastSender !== mSender;
-            lastSender = mSender;
+            // Generador de etiquetas de Fecha (Ej. "13 de mayo de 2026")
+            const msgDate = new Date(m.created_at || Date.now());
+            const dateStr = msgDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
             
+            if (dateStr !== lastDateStr) {
+                chatHTML += `
+                <div class="w-full flex justify-center my-4 fade-in">
+                    <span class="bg-white/80 backdrop-blur border border-slate-200 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm uppercase tracking-wider">
+                        ${dateStr}
+                    </span>
+                </div>`;
+                lastDateStr = dateStr;
+            }
+
+            const timeString = msgDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+            // Identificar los grupos de mensajes para la forma de la burbuja y los márgenes
             const nextMsg = chatMessages[index + 1];
             const nextSender = nextMsg ? String(nextMsg.sender || "").toLowerCase().trim() : null;
+            const prevMsg = chatMessages[index - 1];
+            const prevSender = prevMsg ? String(prevMsg.sender || "").toLowerCase().trim() : null;
+
+            const isFirstInGroup = prevSender !== mSender;
             const isLastInGroup = nextSender !== mSender;
 
             const marginClass = isLastInGroup ? 'mb-3' : 'mb-1';
             
-            // Forma de la burbuja (estilo WhatsApp)
+            // Lógica para redondear las esquinas de los globos (Colita de WhatsApp)
             let bubbleShape = 'rounded-2xl';
-            if (isMine && isFirstInGroup) bubbleShape += ' rounded-tr-sm';
-            if (!isMine && isFirstInGroup) bubbleShape += ' rounded-tl-sm';
+            if (isMine) bubbleShape += isFirstInGroup ? ' rounded-tr-sm' : '';
+            else bubbleShape += isFirstInGroup ? ' rounded-tl-sm' : '';
 
-            // Colores claros y naturales
             const bubbleColors = isMine 
                 ? 'bg-[#E0F2F1] text-teal-900 border border-[#B2DFDB]' 
                 : 'bg-white text-slate-800 border border-slate-200';
 
-            const timeString = new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+            const checkColor = m.read ? 'text-[#0ea5e9]' : 'text-slate-400';
 
             chatHTML += `
-            <div class="flex ${isMine ? 'justify-end' : 'justify-start'} ${marginClass} fade-in px-2 sm:px-4 w-full">
-                <div class="${bubbleColors} px-3 py-2 max-w-[85%] sm:max-w-[70%] shadow-sm relative group min-w-[100px] ${bubbleShape}">
+            <div class="w-full flex ${isMine ? 'justify-end' : 'justify-start'} ${marginClass} fade-in px-2 sm:px-4">
+                
+                <div class="relative max-w-[85%] md:max-w-[70%] ${bubbleColors} ${bubbleShape} px-3 py-2 shadow-sm flex flex-col min-w-[80px] group">
                     
+                    <!-- Botones de edición ocultos (Se muestran al pasar el mouse) -->
                     ${isMine && !m.deleted ? `
-                        <div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-black/5 backdrop-blur-md rounded-bl-lg rounded-tr-sm p-1 z-20">
-                            <button onclick="window.editMessage('${m.__backendId}', '${(m.message || '').replace(/'/g, "\\'")}')" class="text-teal-700 hover:text-teal-900"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
-                            <button onclick="window.deleteMessageForEveryone('${m.__backendId}')" class="text-red-500 hover:text-red-700"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        <div class="absolute -top-3 -right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white rounded-lg shadow-lg flex items-center p-1 gap-1 z-20">
+                            <button onclick="window.editMessage('${m.__backendId}', '${(m.message || '').replace(/'/g, "\\'")}')" class="p-1 hover:text-cyan-400"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="window.deleteMessageForEveryone('${m.__backendId}')" class="p-1 hover:text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                         </div>
                     ` : ''}
 
                     ${m.image ? `
-                        <div class="mb-2 mt-1 rounded overflow-hidden cursor-pointer" onclick="window.openImageFull('${m.image}')">
-                            <img src="${m.image}" class="max-w-full h-auto rounded border border-black/5 shadow-inner">
+                        <div class="mb-2 mt-1 rounded overflow-hidden cursor-pointer bg-black/5" onclick="window.openImageFull('${m.image}')">
+                            <img src="${m.image}" class="w-full h-auto rounded border border-black/10">
                         </div>
                     ` : ''}
                     
-                    <!-- Contenedor Flex para separar texto y hora, evitando que se encimen -->
-                    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-1 sm:gap-4">
-                        <p class="text-[14px] leading-snug ${m.deleted ? 'italic text-slate-500' : ''} break-words whitespace-pre-wrap">
-                            ${m.deleted ? '<i data-lucide="ban" class="w-3 h-3 inline mr-1 text-red-400"></i>Este mensaje fue eliminado' : m.message}
-                            ${m.edited && !m.deleted ? '<span class="text-[10px] text-slate-400 ml-1">(editado)</span>' : ''}
+                    <!-- TEXTO DEL MENSAJE Y HORA EXCLUYENTES -->
+                    <!-- El padding-right de 3.5rem asegura que el texto jamás choque con la hora -->
+                    <div class="relative w-full">
+                        <p class="text-[14px] leading-snug whitespace-pre-wrap break-words ${m.deleted ? 'italic text-slate-500' : ''}" style="padding-bottom: 0.2rem; padding-right: 3.5rem;">
+                            ${m.deleted ? '<i data-lucide="ban" class="w-3 h-3 inline mr-1 text-red-500"></i>Mensaje eliminado' : m.message}
                         </p>
                         
-                        <div class="flex items-center gap-1 shrink-0 self-end">
-                            <span class="text-[10px] ${isMine ? 'text-teal-700/60' : 'text-slate-400'}">${timeString}</span>
-                            ${isMine ? `<i data-lucide="check-check" class="w-3.5 h-3.5 ${m.read ? 'text-teal-500' : 'text-teal-700/30'}"></i>` : ''}
+                        <!-- CONTENEDOR DE LA HORA (Posición absoluta siempre en la esquina inferior) -->
+                        <div class="absolute bottom-0 right-0 flex items-center gap-1">
+                            ${m.edited && !m.deleted ? '<span class="text-[9px] text-slate-400 italic mr-1">editado</span>' : ''}
+                            <span class="text-[10px] text-slate-500/90 font-medium">${timeString}</span>
+                            ${isMine ? `<i data-lucide="check-check" class="w-[14px] h-[14px] ${checkColor}"></i>` : ''}
                         </div>
                     </div>
+
                 </div>
+
             </div>`;
         });
     }
@@ -2147,7 +2165,7 @@ function renderChat(el) {
     <div class="rounded-2xl h-full flex flex-col overflow-hidden fade-in border border-slate-200 shadow-sm bg-slate-50" style="max-height: calc(100% - 1rem);">
         
         <!-- HEADER DEL CHAT -->
-        <div class="p-3 flex items-center justify-between bg-white border-b border-slate-200 z-10">
+        <div class="p-3 flex items-center justify-between bg-white border-b border-slate-200 z-20 shadow-sm">
             <div class="flex items-center gap-3">
                 <button onclick="window.closeChat()" class="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-all">
                     <i data-lucide="arrow-left" class="w-5 h-5"></i>
@@ -2174,17 +2192,17 @@ function renderChat(el) {
             </div>
         </div>
 
-        <!-- ZONA DE MENSAJES -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-0 sm:p-4 custom-scrollbar relative bg-[#efeae2]">
-            <div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
+        <!-- ZONA DE MENSAJES CON FONDO -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto custom-scrollbar relative bg-[#efeae2]">
+            <div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); background-attachment: local;"></div>
             
             <div class="relative z-10 flex flex-col py-4">
                 ${chatHTML}
             </div>
         </div>
         
-        <!-- ZONA DE ENTRADA -->
-        <div class="p-3 bg-white flex items-center gap-2 z-10 border-t border-slate-200">
+        <!-- ZONA DE ENTRADA DE TEXTO -->
+        <div class="p-3 bg-white flex items-center gap-2 z-20 border-t border-slate-200">
             <button onclick="document.getElementById('chat-file-input').click()" class="p-2 text-slate-400 hover:text-teal-600 transition-colors">
                 <i data-lucide="paperclip" class="w-6 h-6"></i>
             </button>
@@ -2199,9 +2217,11 @@ function renderChat(el) {
     </div>`;
     
     lucide.createIcons({ nodes: [el] });
+    
+    // Auto-Scroll suave hacia abajo siempre que se abra el chat
     setTimeout(() => {
         const box = document.getElementById('chat-messages');
-        if(box) box.scrollTop = box.scrollHeight;
+        if(box) box.scrollTo({ top: box.scrollHeight, behavior: 'auto' });
     }, 50);
 }
 
